@@ -1,10 +1,25 @@
 <?php
-require_once 'includes/helpers.php';
-startSecureSession();
+require_once 'config/db.php';
 
 $page_title = "DevHire - Hire Top Full Stack Developers";
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
+
+$currentName = currentUserName();
+$currentEmail = currentUserEmail();
+$currentRole = currentUserRole();
+$canQuickApply = isDeveloper();
+$canSaveJobs = isDeveloper();
+$applySuccess = getFlash('success');
+$applyError = getFlash('error');
+
+$featuredJobs = [];
+$featuredStmt = $conn->prepare("SELECT j.id, j.title, j.description, j.salary_min, j.salary_max, j.experience_level, j.job_type, j.work_mode, j.location, j.tech_stack, COALESCE(u.company_name, u.fullName, 'Company') AS company_name FROM jobs j LEFT JOIN users u ON u.id = j.company_id WHERE j.status = ? ORDER BY j.featured DESC, j.created_at DESC LIMIT 4");
+$featuredStatus = 'active';
+$featuredStmt->bind_param('s', $featuredStatus);
+$featuredStmt->execute();
+$featuredJobs = $featuredStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$featuredStmt->close();
 
 include 'includes/header.php';
 include 'includes/navbar.php';
@@ -71,19 +86,37 @@ include 'includes/navbar.php';
         <h2>Quick Apply Now</h2>
         <p class="quick-apply-subtitle">Apply in under 2 minutes and get hired faster.</p>
 
-        <form
-class="apply-form"
-method="POST"
-    action="<?= appUrl('pages/apply.php') ?>"
-enctype="multipart/form-data">
+        <?php if (!empty($applySuccess)): ?>
+            <div class="notice notice-success" style="max-width: 900px; margin: 0 auto 1.5rem;">
+                <i class="fas fa-check-circle"></i>
+                <p><?= escape($applySuccess) ?></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($applyError)): ?>
+            <div class="notice notice-error" style="max-width: 900px; margin: 0 auto 1.5rem;">
+                <i class="fas fa-exclamation-circle"></i>
+                <p><?= escape($applyError) ?></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($canQuickApply): ?>
+        <form class="apply-form" method="POST" action="<?= appUrl('handlers/apply.php') ?>" enctype="multipart/form-data">
+            <?= csrfField() ?>
+            <input type="hidden" name="redirect_to" value="index.php#quick-apply">
             <div class="form-group">
                 <label for="fullName">Full Name</label>
-                <input type="text" id="full_name" name="full_name" placeholder="Enter your full name" required>
+                <input type="text" id="full_name" name="full_name" placeholder="Enter your full name" value="<?= escape($currentName) ?>" required>
             </div>
 
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                <input type="email" id="email" name="email" placeholder="Enter your email" value="<?= escape($currentEmail) ?>" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
             </div>
 
             <div class="form-group">
@@ -110,6 +143,22 @@ enctype="multipart/form-data">
             </div>
 
             <div class="form-group">
+                <label for="job_position">Desired Position</label>
+                <select id="job_position" name="job_position" required>
+                    <option value="">Select a position</option>
+                    <option value="Full Stack Developer">Full Stack Developer</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="DevOps Engineer">DevOps Engineer</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="portfolio_url">Portfolio URL</label>
+                <input type="url" id="portfolio_url" name="portfolio_url" placeholder="https://yourportfolio.com">
+            </div>
+
+            <div class="form-group">
                 <label for="resume">Upload Resume</label>
                 <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" onchange="DevHire.handleFileUpload(this)">
             </div>
@@ -118,6 +167,27 @@ enctype="multipart/form-data">
                 <i class="fas fa-paper-plane"></i> Apply Now
             </button>
         </form>
+        <?php else: ?>
+            <div class="panel" style="max-width: 900px; margin: 0 auto; text-align: center;">
+                <span class="eyebrow">Developer Access Required</span>
+                <h3 style="margin-top: 0.75rem;">Sign in to submit an application</h3>
+                <p style="color: var(--text-secondary); line-height: 1.7; margin-top: 0.75rem;">
+                    Guest users cannot submit applications from the homepage. Developers should sign in to keep every application linked to a valid account.
+                </p>
+                <?php if (isLoggedIn() && !isDeveloper()): ?>
+                    <p style="margin-top: 1rem; color: var(--text-secondary);">Your current role is <?= escape(ucfirst($currentRole ?: 'user')) ?>, so application submission is disabled for this account.</p>
+                    <div style="display:flex; gap: 1rem; justify-content:center; flex-wrap: wrap; margin-top: 1.5rem;">
+                        <a href="<?= appUrl(roleDashboardPath()) ?>" class="btn-primary">Go to Dashboard</a>
+                        <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-secondary">Browse Jobs</a>
+                    </div>
+                <?php else: ?>
+                    <div style="display:flex; gap: 1rem; justify-content:center; flex-wrap: wrap; margin-top: 1.5rem;">
+                        <a href="<?= appUrl('pages/login.php') ?>" class="btn-primary">Login</a>
+                        <a href="<?= appUrl('pages/register.php') ?>" class="btn-secondary">Register</a>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     </section>
 
     <!-- Featured Jobs Section -->
@@ -128,145 +198,52 @@ enctype="multipart/form-data">
         </div>
 
         <div class="jobs-grid">
-            <!-- Full Stack Developer -->
-            <div class="job-card">
-                <div class="job-header">
-                    <h3 class="job-title">Full Stack Developer</h3>
-                    <p class="job-company">Tech Startup Inc.</p>
-                </div>
+            <?php if (!empty($featuredJobs)): ?>
+                <?php foreach ($featuredJobs as $job): ?>
+                    <div class="job-card">
+                        <div class="job-header">
+                            <h3 class="job-title"><?= escape($job['title'] ?? 'Untitled role') ?></h3>
+                            <p class="job-company"><?= escape($job['company_name'] ?? 'Company') ?></p>
+                        </div>
 
-                <div class="job-details">
-                    <div class="job-meta">
-                        <span class="meta-item">
-                            <i class="fas fa-briefcase"></i> 3-5 Years
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-map-marker-alt"></i> Remote
-                        </span>
+                        <div class="job-details">
+                            <div class="job-meta">
+                                <span class="meta-item">
+                                    <i class="fas fa-briefcase"></i> <?= escape($job['experience_level'] ?? 'Not specified') ?>
+                                </span>
+                                <span class="meta-item">
+                                    <i class="fas fa-map-marker-alt"></i> <?= escape(ucfirst((string) ($job['work_mode'] ?? 'remote'))) ?>
+                                </span>
+                            </div>
+
+                            <div class="job-tags">
+                                <?php foreach (array_slice(array_filter(array_map('trim', explode(',', (string) ($job['tech_stack'] ?? '')))), 0, 3) as $tech): ?>
+                                    <span class="tag"><?= escape($tech) ?></span>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div class="job-salary">
+                                <?= !empty($job['salary_min']) || !empty($job['salary_max']) ? '$' . number_format((int) ($job['salary_min'] ?? 0)) . ' - $' . number_format((int) ($job['salary_max'] ?? $job['salary_min'] ?? 0)) . ' /yr' : 'Salary hidden' ?>
+                            </div>
+                        </div>
+
+                        <div class="job-footer">
+                            <a href="<?= appUrl('pages/apply.php?job_id=' . (int) $job['id']) ?>" class="btn-apply-job">Apply</a>
+                            <?php if ($canSaveJobs): ?>
+                                <button type="button" class="save-job" data-save-job="<?= (int) $job['id'] ?>" aria-label="Save job">
+                                    <i class="far fa-bookmark"></i>
+                                </button>
+                            <?php endif; ?>
+                        </div>
                     </div>
-
-                    <div class="job-tags">
-                        <span class="tag">React</span>
-                        <span class="tag">Node.js</span>
-                        <span class="tag">MongoDB</span>
-                    </div>
-
-                    <div class="job-salary">$150k - $250k /yr</div>
-                </div>
-
-                <div class="job-footer">
-                    <a href="<?= appUrl('pages/apply.php') ?>" class="btn-apply-job">Apply</a>
-                    <button class="save-job" onclick="DevHire.saveJob(1, this)">
-                        <i class="far fa-bookmark"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Frontend Developer -->
-            <div class="job-card">
-                <div class="job-header">
-                    <h3 class="job-title">Frontend Developer</h3>
-                    <p class="job-company">NextGen Solutions</p>
-                </div>
-
-                <div class="job-details">
-                    <div class="job-meta">
-                        <span class="meta-item">
-                            <i class="fas fa-briefcase"></i> 2-4 Years
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-map-marker-alt"></i> Hybrid
-                        </span>
-                    </div>
-
-                    <div class="job-tags">
-                        <span class="tag">Vue.js</span>
-                        <span class="tag">TypeScript</span>
-                        <span class="tag">Tailwind</span>
-                    </div>
-
-                    <div class="job-salary">$120k - $180k /yr</div>
-                </div>
-
-                <div class="job-footer">
-                    <a href="<?= appUrl('pages/apply.php') ?>" class="btn-apply-job">Apply</a>
-                    <button class="save-job" onclick="DevHire.saveJob(2, this)">
-                        <i class="far fa-bookmark"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Backend Developer -->
-            <div class="job-card">
-                <div class="job-header">
-                    <h3 class="job-title">Backend Developer</h3>
-                    <p class="job-company">Enterprise Systems</p>
-                </div>
-
-                <div class="job-details">
-                    <div class="job-meta">
-                        <span class="meta-item">
-                            <i class="fas fa-briefcase"></i> 3-6 Years
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-map-marker-alt"></i> Remote
-                        </span>
-                    </div>
-
-                    <div class="job-tags">
-                        <span class="tag">Python</span>
-                        <span class="tag">PostgreSQL</span>
-                        <span class="tag">Docker</span>
-                    </div>
-
-                    <div class="job-salary">$130k - $210k /yr</div>
-                </div>
-
-                <div class="job-footer">
-                    <a href="<?= appUrl('pages/apply.php') ?>" class="btn-apply-job">Apply</a>
-                    <button class="save-job" onclick="DevHire.saveJob(3, this)">
-                        <i class="far fa-bookmark"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- DevOps Engineer -->
-            <div class="job-card">
-                <div class="job-header">
-                    <h3 class="job-title">DevOps Engineer</h3>
-                    <p class="job-company">Cloud Innovators</p>
-                </div>
-
-                <div class="job-details">
-                    <div class="job-meta">
-                        <span class="meta-item">
-                            <i class="fas fa-briefcase"></i> 4-7 Years
-                        </span>
-                        <span class="meta-item">
-                            <i class="fas fa-map-marker-alt"></i> Remote
-                        </span>
-                    </div>
-
-                    <div class="job-tags">
-                        <span class="tag">Kubernetes</span>
-                        <span class="tag">AWS</span>
-                        <span class="tag">CI/CD</span>
-                    </div>
-
-                    <div class="job-salary">$140k - $220k /yr</div>
-                </div>
-
-                <div class="job-footer">
-                    <a href="<?= appUrl('pages/apply.php') ?>" class="btn-apply-job">Apply</a>
-                    <button class="save-job" onclick="DevHire.saveJob(4, this)">
-                        <i class="far fa-bookmark"></i>
-                    </button>
-                </div>
-            </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="empty-state">No active jobs are available right now.</div>
+            <?php endif; ?>
         </div>
 
         <div style="text-align: center; margin-top: 3rem;">
-            <a href="/DevHire/pages/jobs.php" class="btn-primary">
+            <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-primary">
                 <i class="fas fa-arrow-right"></i> View All Jobs
             </a>
         </div>
@@ -558,7 +535,7 @@ enctype="multipart/form-data">
                 </div>
             </div>
 
-            <a href="/DevHire/pages/apply.php" class="btn-primary" style="display: inline-block; margin-top: 2rem;">
+            <a href="<?= appUrl('pages/apply.php') ?>" class="btn-primary" style="display: inline-block; margin-top: 2rem;">
                 <i class="fas fa-rocket"></i> Start Your Application
             </a>
         </div>

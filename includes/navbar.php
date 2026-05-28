@@ -4,7 +4,9 @@ startSecureSession();
 $isAuthenticated = isLoggedIn();
 $displayName = currentUserName();
 $displayEmail = currentUserEmail();
-$displayPhoto = $_SESSION['admin_photo'] ?? '';
+$displayPhoto = currentUserPhoto();
+$currentRole = currentUserRole();
+$roleHome = roleDashboardPath($currentRole);
 ?>
 
 <!-- Navigation Bar -->
@@ -13,7 +15,7 @@ $displayPhoto = $_SESSION['admin_photo'] ?? '';
 
 <!-- Logo -->
 <div class="nav-logo">
-<a href="/hieringfullstackdeveloper/DevHire/index.php">
+<a href="<?= appUrl('index.php') ?>">
 
 <span class="logo-icon">&lt;/&gt;</span>
 
@@ -48,7 +50,7 @@ id="navMenu">
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/index.php"
+href="<?= appUrl('index.php') ?>"
 class="nav-link">
 
 Home
@@ -58,7 +60,7 @@ Home
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/pages/jobs.php"
+href="<?= appUrl('pages/jobs.php') ?>"
 class="nav-link">
 
 Jobs
@@ -68,7 +70,7 @@ Jobs
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/pages/developers.php"
+href="<?= appUrl('pages/developers.php') ?>"
 class="nav-link">
 
 Developers
@@ -78,7 +80,7 @@ Developers
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/pages/how-it-works.php"
+href="<?= appUrl('pages/how-it-works.php') ?>"
 class="nav-link">
 
 How It Works
@@ -88,7 +90,7 @@ How It Works
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/pages/pricing.php"
+href="<?= appUrl('pages/pricing.php') ?>"
 class="nav-link">
 
 Pricing
@@ -98,7 +100,7 @@ Pricing
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/pages/testimonials.php"
+href="<?= appUrl('pages/testimonials.php') ?>"
 class="nav-link">
 
 Testimonials
@@ -108,13 +110,28 @@ Testimonials
 
 <li>
 <a
-href="/hieringfullstackdeveloper/DevHire/pages/contact.php"
+href="<?= appUrl('pages/contact.php') ?>"
 class="nav-link">
 
 Contact
 
 </a>
 </li>
+
+<?php if ($isAuthenticated): ?>
+	<?php if (isAdmin()): ?>
+		<li><a href="<?= appUrl('admin/dashboard.php') ?>" class="nav-link">Admin Dashboard</a></li>
+		<li><a href="<?= appUrl('admin/applications.php') ?>" class="nav-link">Applications</a></li>
+	<?php elseif (isCompany()): ?>
+		<li><a href="<?= appUrl('company/dashboard.php') ?>" class="nav-link">Company Dashboard</a></li>
+		<li><a href="<?= appUrl('company/jobs.php') ?>" class="nav-link">Manage Jobs</a></li>
+		<li><a href="<?= appUrl('company/applicants.php') ?>" class="nav-link">Applicants</a></li>
+	<?php else: ?>
+		<li><a href="<?= appUrl('pages/profile.php') ?>" class="nav-link">My Profile</a></li>
+		<li><a href="<?= appUrl('pages/apply.php') ?>" class="nav-link">Apply</a></li>
+		<li><a href="<?= appUrl('pages/applications.php') ?>" class="nav-link">Applications</a></li>
+	<?php endif; ?>
+<?php endif; ?>
 
 </ul>
 
@@ -126,7 +143,7 @@ Contact
 
 <div id="userArea">
 <?php if ($isAuthenticated): ?>
-	<a class="user-chip user-chip-link" href="<?= appUrl('pages/profile.php') ?>">
+	<a class="user-chip user-chip-link" href="<?= appUrl($roleHome) ?>">
 		<?php if (!empty($displayPhoto)): ?>
 			<img src="<?= htmlspecialchars($displayPhoto, ENT_QUOTES, 'UTF-8') ?>" alt="User photo" class="user-avatar">
 		<?php else: ?>
@@ -134,7 +151,7 @@ Contact
 		<?php endif; ?>
 		<div class="user-chip-copy">
 			<strong><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?></strong>
-			<span>View profile</span>
+			<span><?= htmlspecialchars(roleLabel($currentRole), ENT_QUOTES, 'UTF-8') ?> account</span>
 		</div>
 	</a>
 <?php else: ?>
@@ -145,18 +162,17 @@ Contact
 	Login
 
 	</a>
+
+	<a
+	href="<?= appUrl('pages/register.php') ?>"
+	class="btn-apply">
+
+	Register
+
+	</a>
 <?php endif; ?>
 
 </div>
-
-<a
-href="<?= appUrl('pages/apply.php') ?>"
-class="btn-apply">
-
-Apply Now
-
-</a>
-
 
 </div>
 

@@ -1,13 +1,20 @@
 <?php
-session_start();
+
 require_once '../config/db.php';
+startSecureSession();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $fullName = sanitize($_POST['fullName'] ?? '');
-    $email = sanitize($_POST['email'] ?? '');
-    $password = sanitize($_POST['password'] ?? '');
-    $confirmPassword = sanitize($_POST['confirmPassword'] ?? '');
-    $accountType = sanitize($_POST['accountType'] ?? '');
+    if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
+        $_SESSION['error'] = 'Your session expired. Please reload and try again.';
+        header('Location: ' . appUrl('pages/register.php'));
+        exit;
+    }
+
+    $fullName = trim((string) ($_POST['fullName'] ?? ''));
+    $email = strtolower(trim((string) ($_POST['email'] ?? '')));
+    $password = (string) ($_POST['password'] ?? '');
+    $confirmPassword = (string) ($_POST['confirmPassword'] ?? '');
+    $accountType = strtolower(trim((string) ($_POST['accountType'] ?? '')));
 
     // Validate
     $errors = [];
@@ -19,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($errors)) {
         $_SESSION['errors'] = $errors;
-        header('Location: ../pages/register.php');
+        header('Location: ' . appUrl('pages/register.php'));
         exit;
     }
 
@@ -29,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute();
     if ($stmt->get_result()->num_rows > 0) {
         $_SESSION['error'] = 'Email already registered';
-        header('Location: ../pages/register.php');
+        header('Location: ' . appUrl('pages/register.php'));
         exit;
     }
 
@@ -43,16 +50,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($stmt->execute()) {
         $_SESSION['success'] = 'Account created successfully! Please login.';
-        header('Location: ../pages/login.php');
+        header('Location: ' . appUrl('pages/login.php'));
         exit;
     } else {
         $_SESSION['error'] = 'Error creating account. Please try again.';
         logError('Registration error', $stmt->error);
-        header('Location: ../pages/register.php');
+        header('Location: ' . appUrl('pages/register.php'));
         exit;
     }
 }
 
-header('Location: ../pages/register.php');
+header('Location: ' . appUrl('pages/register.php'));
 exit;
 ?>

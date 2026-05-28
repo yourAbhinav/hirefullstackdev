@@ -1,7 +1,9 @@
 <?php
+require_once '../includes/helpers.php';
+
 $page_title = "Testimonials - DevHire";
-$css_path = "/DevHire/assets/css/style.css";
-$js_path = "/DevHire/assets/js/main.js";
+$css_path = appUrl('assets/css/style.css');
+$js_path = appUrl('assets/js/main.js');
 
 include '../includes/header.php';
 include '../includes/navbar.php';

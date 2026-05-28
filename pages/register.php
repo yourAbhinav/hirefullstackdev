@@ -1,10 +1,18 @@
 <?php
-$page_title = "Register - DevHire";
-$css_path = "/DevHire/assets/css/style.css";
-$js_path = "/DevHire/assets/js/main.js";
+require_once '../includes/helpers.php';
+startSecureSession();
+
+$page_title = 'Register - DevHire';
+$css_path = appUrl('assets/css/style.css');
+$js_path = appUrl('assets/js/main.js');
 
 include '../includes/header.php';
 include '../includes/navbar.php';
+
+$registerErrors = $_SESSION['errors'] ?? [];
+$registerError = $_SESSION['error'] ?? '';
+$registerSuccess = $_SESSION['success'] ?? '';
+unset($_SESSION['errors'], $_SESSION['error'], $_SESSION['success']);
 ?>
 
     <!-- Register Section -->
@@ -14,7 +22,24 @@ include '../includes/navbar.php';
                 <h2 style="margin-bottom: 0.5rem; text-align: center;">Create Account</h2>
                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: 2rem;">Join thousands of developers and companies</p>
 
-                <form method="POST" action="/DevHire/auth/register_handler.php">
+                <?php if (!empty($registerSuccess)): ?>
+                    <div class="notice notice-success" style="margin-bottom: 1rem;"><?= htmlspecialchars($registerSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+                <?php endif; ?>
+
+                <?php if (!empty($registerError)): ?>
+                    <div class="notice notice-error" style="margin-bottom: 1rem;"><?= htmlspecialchars($registerError, ENT_QUOTES, 'UTF-8') ?></div>
+                <?php endif; ?>
+
+                <?php if (!empty($registerErrors)): ?>
+                    <div class="notice notice-error" style="margin-bottom: 1rem;">
+                        <?php foreach ($registerErrors as $registerMessage): ?>
+                            <div><?= htmlspecialchars($registerMessage, ENT_QUOTES, 'UTF-8') ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" action="<?= appUrl('auth/register_handler.php') ?>">
+                    <?= csrfField() ?>
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label for="fullName">Full Name</label>
                         <input type="text" id="fullName" name="fullName" placeholder="John Doe" required>
@@ -46,7 +71,7 @@ include '../includes/navbar.php';
 
                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem;">
                         <input type="checkbox" id="terms" name="terms" required>
-                        <label for="terms" style="cursor: pointer; margin: 0;">I agree to the <a href="#" style="color: var(--primary); text-decoration: none;">Terms of Service</a></label>
+                        <label for="terms" style="cursor: pointer; margin: 0;">I agree to the <a href="<?= appUrl('pages/terms.php') ?>" style="color: var(--primary); text-decoration: none;">Terms of Service</a></label>
                     </div>
 
                     <button type="submit" class="btn-primary" style="width: 100%; padding: 0.9rem; font-size: 1rem;">
@@ -56,7 +81,7 @@ include '../includes/navbar.php';
 
                 <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-light);">
                     <p style="color: var(--text-secondary); margin-bottom: 1rem;">Already have an account?</p>
-                    <a href="/DevHire/pages/login.php" style="color: var(--primary); text-decoration: none; font-weight: 600;">Sign In</a>
+                    <a href="<?= appUrl('pages/login.php') ?>" style="color: var(--primary); text-decoration: none; font-weight: 600;">Sign In</a>
                 </div>
             </div>
         </div>

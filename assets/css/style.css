@@ -38,6 +38,44 @@
     --glow-accent: 0 0 20px rgba(244, 63, 94, 0.4);
 }
 
+/* Accessibility: Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Performance fallback for lower-end devices/browsers */
+@media (max-width: 1024px), (prefers-reduced-motion: reduce) {
+    body::before {
+        display: none;
+    }
+
+    .auth-panel,
+    .panel,
+    .notice,
+    .stat-card,
+    .hero-card,
+    .dashboard-filters,
+    .details-panel,
+    .job-card,
+    .feature-card,
+    .testimonial-card,
+    .timeline-item,
+    .tech-icon,
+    .navbar {
+        backdrop-filter: none !important;
+    }
+
+    .hero-card,
+    .floating-icon {
+        animation: none !important;
+    }
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -114,7 +152,7 @@ p {
     backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(71, 85, 105, 0.3);
     padding: 1rem 0;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .navbar:hover {
@@ -139,7 +177,7 @@ p {
     font-size: 1.5rem;
     font-weight: 800;
     color: var(--text-primary);
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .logo-icon {
@@ -171,7 +209,7 @@ p {
 .nav-link {
     color: var(--text-secondary);
     text-decoration: none;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     position: relative;
     font-weight: 500;
 }
@@ -207,7 +245,7 @@ p {
     border-radius: 0.5rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     text-decoration: none;
     display: inline-block;
     font-size: 0.9rem;
@@ -306,7 +344,7 @@ p {
     border-radius: 0.6rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -518,7 +556,7 @@ p {
     border-radius: 0.5rem;
     color: var(--text-primary);
     font-family: inherit;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .form-group input::placeholder {
@@ -546,7 +584,7 @@ p {
     border-radius: 0.5rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     box-shadow: var(--shadow-lg), var(--glow-primary);
 }
 
@@ -591,7 +629,7 @@ p {
     border: 1px solid rgba(124, 58, 237, 0.2);
     border-radius: 1rem;
     padding: 2rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -699,7 +737,7 @@ p {
     border-radius: 0.4rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     text-decoration: none;
     display: inline-block;
 }
@@ -715,7 +753,7 @@ p {
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 1.2rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .save-job:hover {
@@ -746,7 +784,7 @@ p {
     border-radius: 1rem;
     padding: 2rem;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     position: relative;
 }
 
@@ -879,7 +917,7 @@ p {
     border-radius: 1rem;
     padding: 2.5rem;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .stat-card:hover {
@@ -925,7 +963,7 @@ p {
     border: 1px solid rgba(124, 58, 237, 0.2);
     border-radius: 1rem;
     padding: 2rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .testimonial-card:hover {
@@ -999,7 +1037,7 @@ p {
     flex-direction: column;
     align-items: center;
     gap: 1rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .tech-icon {
@@ -1013,7 +1051,7 @@ p {
     align-items: center;
     justify-content: center;
     font-size: 2.5rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 .tech-item:hover .tech-icon {
@@ -1182,7 +1220,7 @@ p {
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     text-decoration: none;
 }
 
@@ -1210,7 +1248,7 @@ p {
 .footer-links a {
     color: var(--text-secondary);
     text-decoration: none;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
     font-size: 0.9rem;
 }
 
@@ -1832,7 +1870,7 @@ button[disabled] {
     border-radius: 0.75rem;
     color: var(--text-primary);
     font-family: inherit;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
 .form-group textarea:focus {
@@ -2170,7 +2208,7 @@ button[disabled] {
     border: 1px solid rgba(148, 163, 184, 0.25);
     border-radius: 0.85rem;
     color: var(--text-primary);
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
 .action-form textarea {

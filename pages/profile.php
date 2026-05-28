@@ -1,21 +1,51 @@
 <?php
 
 require_once '../config/db.php';
-requireLogin();
+requireDeveloper();
 
 $page_title = 'My Profile - DevHire';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
+function profileImageUrl(string $value): string
+{
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('#^https?://#i', $value)) {
+        return $value;
+    }
+
+    return appUrl(ltrim($value, '/'));
+}
+
 $userId = (int) currentUserId();
 
-$profileStmt = $conn->prepare('SELECT au.id, au.firebase_uid, au.name, au.email, au.photo, au.provider, au.created_at AS admin_created_at, u.fullName, u.phone, u.experience, u.techStack, u.portfolio_url, u.bio, u.profile_image, u.role, u.verified, u.created_at AS user_created_at FROM admin_users au LEFT JOIN users u ON u.id = au.id WHERE au.id = ? LIMIT 1');
+$profileStmt = $conn->prepare('SELECT u.id, u.fullName, u.email, u.phone, u.experience, u.techStack, u.portfolio_url, u.bio, u.profile_image, u.role, u.provider, u.firebase_uid, u.company_name, u.company_description, u.verified, u.created_at AS user_created_at, u.updated_at AS user_updated_at FROM users u WHERE u.id = ? LIMIT 1');
 $profileStmt->bind_param('i', $userId);
 $profileStmt->execute();
 $profile = $profileStmt->get_result()->fetch_assoc() ?: [];
 $profileStmt->close();
 
-$applicationStmt = $conn->prepare('SELECT id, email, phone, experience, jobPosition, portfolio, message, resume, job_id, status, feedback, rating, created_at FROM applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 12');
+if (empty($profile)) {
+    $profile = [
+        'id' => $userId,
+        'fullName' => currentUserName(),
+        'email' => currentUserEmail(),
+        'phone' => '',
+        'experience' => '',
+        'techStack' => '',
+        'portfolio_url' => '',
+        'bio' => '',
+        'profile_image' => '',
+        'role' => currentUserRole(),
+        'provider' => $_SESSION['user_provider'] ?? '',
+        'verified' => 0,
+    ];
+}
+
+$applicationStmt = $conn->prepare('SELECT id, full_name, email, phone, experience, tech_stack, job_position, portfolio_url, message, resume_path, job_id, status, feedback, rating, created_at FROM applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 12');
 $applicationStmt->bind_param('i', $userId);
 $applicationStmt->execute();
 $applications = $applicationStmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -37,11 +67,17 @@ $totalApplications = count($applications);
 $totalSavedJobs = count($savedJobs);
 $totalMessages = count($messages);
 
-$profileName = $profile['name'] ?? $profile['fullName'] ?? currentUserName();
-$profileEmail = $profile['email'] ?? currentUserEmail();
-$profilePhoto = $profile['photo'] ?? $profile['profile_image'] ?? ($_SESSION['admin_photo'] ?? '');
-$profileRole = $profile['role'] ?? ($_SESSION['role'] ?? 'admin');
-$profileProvider = $profile['provider'] ?? ($_SESSION['auth_provider'] ?? 'google');
+$profileName = (string) ($profile['fullName'] ?? currentUserName());
+$profileEmail = (string) ($profile['email'] ?? currentUserEmail());
+$profilePhone = (string) ($profile['phone'] ?? '');
+$profileExperience = (string) ($profile['experience'] ?? '');
+$profileTechStack = (string) ($profile['techStack'] ?? '');
+$profileProvider = (string) ($profile['provider'] ?? ($_SESSION['user_provider'] ?? 'password'));
+$profileRole = strtolower((string) ($profile['role'] ?? currentUserRole()));
+$profilePhoto = (string) ($profile['profile_image'] ?? currentUserPhoto());
+$profilePhotoUrl = profileImageUrl($profilePhoto);
+$profilePortfolio = (string) ($profile['portfolio_url'] ?? '');
+$profileBio = (string) ($profile['bio'] ?? '');
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -52,18 +88,18 @@ include '../includes/navbar.php';
         <div>
             <span class="eyebrow">Account</span>
             <h1>My Profile</h1>
-            <p>Track saved jobs, application history, and messages from one place.</p>
+            <p>Track your saved jobs, application history, and recent messages in one place.</p>
         </div>
         <div class="profile-hero-card">
-            <?php if (!empty($profilePhoto)): ?>
-                <img src="<?= htmlspecialchars($profilePhoto, ENT_QUOTES, 'UTF-8') ?>" alt="Profile photo" class="profile-avatar">
+            <?php if (!empty($profilePhotoUrl)): ?>
+                <img src="<?= escape($profilePhotoUrl) ?>" alt="Profile photo" class="profile-avatar">
             <?php else: ?>
-                <div class="profile-avatar profile-avatar-fallback"><?= htmlspecialchars(strtoupper(substr($profileName, 0, 1)), ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="profile-avatar profile-avatar-fallback"><?= escape(strtoupper(substr($profileName, 0, 1))) ?></div>
             <?php endif; ?>
             <div>
-                <strong><?= htmlspecialchars($profileName, ENT_QUOTES, 'UTF-8') ?></strong>
-                <span><?= htmlspecialchars($profileEmail, ENT_QUOTES, 'UTF-8') ?></span>
-                <span class="profile-meta"><?= htmlspecialchars(ucfirst($profileRole), ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars(ucfirst($profileProvider), ENT_QUOTES, 'UTF-8') ?></span>
+                <strong><?= escape($profileName) ?></strong>
+                <span><?= escape($profileEmail) ?></span>
+                <span class="profile-meta"><?= escape(roleLabel($profileRole)) ?> &middot; <?= escape(ucfirst($profileProvider ?: 'password')) ?></span>
             </div>
         </div>
     </div>
@@ -82,8 +118,8 @@ include '../includes/navbar.php';
             <strong><?= number_format($totalMessages) ?></strong>
         </article>
         <article class="stat-card">
-            <span>Account</span>
-            <strong><?= htmlspecialchars(strtoupper(substr($profileName, 0, 1)), ENT_QUOTES, 'UTF-8') ?></strong>
+            <span>Role</span>
+            <strong><?= escape(roleLabel($profileRole)) ?></strong>
         </article>
     </div>
 
@@ -95,14 +131,34 @@ include '../includes/navbar.php';
                     <h2>Details</h2>
                 </div>
             </div>
+
             <div class="details-grid profile-details-grid">
-                <div><span>Full Name</span><strong><?= htmlspecialchars($profileName, ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Email</span><strong><?= htmlspecialchars($profileEmail, ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Phone</span><strong><?= htmlspecialchars($profile['phone'] ?? 'Not set', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Experience</span><strong><?= htmlspecialchars($profile['experience'] ?? 'Not set', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Tech Stack</span><strong><?= htmlspecialchars($profile['techStack'] ?? 'Not set', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Portfolio</span><strong><?= !empty($profile['portfolio_url']) ? 'Available' : 'Not set' ?></strong></div>
+                <div><span>Full Name</span><strong><?= escape($profileName) ?></strong></div>
+                <div><span>Email</span><strong><?= escape($profileEmail) ?></strong></div>
+                <div><span>Phone</span><strong><?= escape($profilePhone !== '' ? $profilePhone : 'Not set') ?></strong></div>
+                <div><span>Experience</span><strong><?= escape($profileExperience !== '' ? $profileExperience : 'Not set') ?></strong></div>
+                <div><span>Tech Stack</span><strong><?= escape($profileTechStack !== '' ? $profileTechStack : 'Not set') ?></strong></div>
+                <div><span>Portfolio</span>
+                    <strong>
+                        <?php if (!empty($profilePortfolio)): ?>
+                            <a href="<?= escape($profilePortfolio) ?>" target="_blank" rel="noopener noreferrer">View portfolio</a>
+                        <?php else: ?>
+                            Not set
+                        <?php endif; ?>
+                    </strong>
+                </div>
+                <div><span>Provider</span><strong><?= escape(ucfirst($profileProvider !== '' ? $profileProvider : 'password')) ?></strong></div>
+                <div><span>Role</span><strong><?= escape(roleLabel($profileRole)) ?></strong></div>
             </div>
+
+            <?php if (!empty($profileBio)): ?>
+                <div style="margin-top: 1.5rem;">
+                    <span class="eyebrow">Bio</span>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); line-height: 1.7;">
+                        <?= escape($profileBio) ?>
+                    </p>
+                </div>
+            <?php endif; ?>
         </section>
 
         <section class="panel">
@@ -117,11 +173,11 @@ include '../includes/navbar.php';
                     <?php foreach ($savedJobs as $savedJob): ?>
                         <article class="profile-item-card">
                             <div>
-                                <strong><?= htmlspecialchars($savedJob['title'] ?? 'Untitled role', ENT_QUOTES, 'UTF-8') ?></strong>
-                                <p><?= htmlspecialchars(trim(($savedJob['location'] ?? 'Remote') . ' · ' . ($savedJob['work_mode'] ?? 'remote')), ENT_QUOTES, 'UTF-8') ?></p>
+                                <strong><?= escape($savedJob['title'] ?? 'Untitled role') ?></strong>
+                                <p><?= escape($savedJob['location'] ?? 'Remote') ?> &middot; <?= escape($savedJob['work_mode'] ?? 'remote') ?></p>
                             </div>
                             <div class="profile-item-meta">
-                                <span><?= htmlspecialchars($savedJob['job_type'] ?? 'full-time', ENT_QUOTES, 'UTF-8') ?></span>
+                                <span><?= escape($savedJob['job_type'] ?? 'full-time') ?></span>
                                 <span><?= !empty($savedJob['salary_min']) && !empty($savedJob['salary_max']) ? '$' . number_format((int) $savedJob['salary_min']) . ' - $' . number_format((int) $savedJob['salary_max']) : 'Salary hidden' ?></span>
                             </div>
                         </article>
@@ -144,15 +200,15 @@ include '../includes/navbar.php';
                     <?php foreach ($applications as $application): ?>
                         <article class="profile-item-card">
                             <div>
-                                <strong><?= htmlspecialchars($application['jobPosition'] ?? 'Application', ENT_QUOTES, 'UTF-8') ?></strong>
-                                <p><?= htmlspecialchars($application['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+                                <strong><?= escape($application['job_position'] ?? 'Application') ?></strong>
+                                <p><?= escape($application['email'] ?? '') ?></p>
                             </div>
                             <div class="profile-item-meta">
-                                <span class="status-badge status-<?= htmlspecialchars($application['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($application['status']), ENT_QUOTES, 'UTF-8') ?></span>
-                                <span><?= htmlspecialchars(date('M j, Y', strtotime($application['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="status-badge status-<?= escape($application['status'] ?? 'pending') ?>"><?= escape(ucfirst($application['status'] ?? 'pending')) ?></span>
+                                <span><?= escape(date('M j, Y', strtotime((string) $application['created_at']))) ?></span>
                             </div>
                             <?php if (!empty($application['feedback'])): ?>
-                                <p class="profile-note">Feedback: <?= htmlspecialchars($application['feedback'], ENT_QUOTES, 'UTF-8') ?></p>
+                                <p class="profile-note">Feedback: <?= escape($application['feedback']) ?></p>
                             <?php endif; ?>
                         </article>
                     <?php endforeach; ?>
@@ -174,14 +230,14 @@ include '../includes/navbar.php';
                     <?php foreach ($messages as $message): ?>
                         <article class="profile-item-card">
                             <div>
-                                <strong><?= htmlspecialchars($message['subject'] ?: 'Message', ENT_QUOTES, 'UTF-8') ?></strong>
-                                <p><?= htmlspecialchars($message['sender_name'] ?? $message['receiver_name'] ?? 'Conversation', ENT_QUOTES, 'UTF-8') ?></p>
+                                <strong><?= escape($message['subject'] ?: 'Message') ?></strong>
+                                <p><?= escape($message['sender_name'] ?? $message['receiver_name'] ?? 'Conversation') ?></p>
                             </div>
                             <div class="profile-item-meta">
-                                <span><?= htmlspecialchars(date('M j, Y', strtotime($message['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
+                                <span><?= escape(date('M j, Y', strtotime((string) $message['created_at']))) ?></span>
                                 <span><?= !empty($message['read_status']) ? 'Read' : 'Unread' ?></span>
                             </div>
-                            <p class="profile-note"><?= htmlspecialchars(strlen($message['message'] ?? '') > 160 ? substr($message['message'] ?? '', 0, 160) . '...' : ($message['message'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+                            <p class="profile-note"><?= escape(strlen((string) ($message['message'] ?? '')) > 160 ? substr((string) $message['message'], 0, 160) . '...' : (string) ($message['message'] ?? '')) ?></p>
                         </article>
                     <?php endforeach; ?>
                 </div>

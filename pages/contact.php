@@ -1,7 +1,13 @@
 <?php
+require_once '../includes/helpers.php';
+startSecureSession();
+
 $page_title = "Contact Us - DevHire";
-$css_path = "/DevHire/assets/css/style.css";
-$js_path = "/DevHire/assets/js/main.js";
+$css_path = appUrl('assets/css/style.css');
+$js_path = appUrl('assets/js/main.js');
+
+$contactSuccess = getFlash('success');
+$contactError = getFlash('error');
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -56,7 +62,23 @@ include '../includes/navbar.php';
 
             <!-- Contact Form -->
             <div>
-                <form method="POST" action="/DevHire/handlers/contact_handler.php" style="background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 1rem; padding: 2rem;">
+                <form method="POST" action="<?= appUrl('handlers/contact_handler.php') ?>" style="background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 1rem; padding: 2rem;">
+                    <?= csrfField() ?>
+
+                    <?php if (!empty($contactSuccess)): ?>
+                        <div class="notice notice-success" style="margin-bottom: 1.5rem;">
+                            <i class="fas fa-check-circle"></i>
+                            <p><?= escape($contactSuccess) ?></p>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($contactError)): ?>
+                        <div class="notice notice-error" style="margin-bottom: 1.5rem;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p><?= escape($contactError) ?></p>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label for="contactName">Full Name</label>
                         <input type="text" id="contactName" name="name" placeholder="Your name" required>

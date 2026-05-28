@@ -1,7 +1,9 @@
 <?php
+require_once '../includes/helpers.php';
+
 $page_title = "Pricing - DevHire";
-$css_path = "/DevHire/assets/css/style.css";
-$js_path = "/DevHire/assets/js/main.js";
+$css_path = appUrl('assets/css/style.css');
+$js_path = appUrl('assets/js/main.js');
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -48,7 +50,7 @@ include '../includes/navbar.php';
                     </li>
                 </ul>
 
-                <a href="/DevHire/pages/register.php" class="btn-secondary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
+                <a href="<?= appUrl('pages/register.php') ?>" class="btn-secondary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
                     Get Started
                 </a>
             </div>
@@ -84,7 +86,7 @@ include '../includes/navbar.php';
                     </li>
                 </ul>
 
-                <a href="/DevHire/pages/register.php" class="btn-primary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
+                <a href="<?= appUrl('pages/register.php') ?>" class="btn-primary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
                     Start Free Trial
                 </a>
             </div>
@@ -118,7 +120,7 @@ include '../includes/navbar.php';
                     </li>
                 </ul>
 
-                <a href="/DevHire/pages/contact.php" class="btn-secondary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
+                <a href="<?= appUrl('pages/contact.php') ?>" class="btn-secondary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
                     Contact Sales
                 </a>
             </div>

@@ -1,7 +1,9 @@
 <?php
+require_once '../includes/helpers.php';
+
 $page_title = "How It Works - DevHire";
-$css_path = "/DevHire/assets/css/style.css";
-$js_path = "/DevHire/assets/js/main.js";
+$css_path = appUrl('assets/css/style.css');
+$js_path = appUrl('assets/js/main.js');
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -151,8 +153,8 @@ include '../includes/navbar.php';
             <h2>Ready to Get Started?</h2>
             <p>Join thousands of developers and companies finding success on DevHire</p>
             <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 2rem;">
-                <a href="/DevHire/pages/register.php" class="btn-primary">Create Account</a>
-                <a href="/DevHire/pages/jobs.php" class="btn-secondary">Browse Jobs</a>
+                <a href="<?= appUrl('pages/register.php') ?>" class="btn-primary">Create Account</a>
+                <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-secondary">Browse Jobs</a>
             </div>
         </div>
     </section>

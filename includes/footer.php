@@ -1,3 +1,10 @@
+<?php
+require_once __DIR__ . '/helpers.php';
+startSecureSession();
+$isAuthenticated = isLoggedIn();
+$isDeveloperUser = isDeveloper();
+?>
+
 <!-- Footer -->
 <footer class="footer">
 
@@ -17,26 +24,6 @@
 We connect talented full stack developers with verified companies looking for top talent.
 </p>
 
-<div class="social-links">
-
-<a href="#" class="social-icon">
-<i class="fab fa-facebook"></i>
-</a>
-
-<a href="#" class="social-icon">
-<i class="fab fa-twitter"></i>
-</a>
-
-<a href="#" class="social-icon">
-<i class="fab fa-linkedin"></i>
-</a>
-
-<a href="#" class="social-icon">
-<i class="fab fa-instagram"></i>
-</a>
-
-</div>
-
 </div>
 
 <!-- Quick Links -->
@@ -49,25 +36,25 @@ Quick Links
 <ul class="footer-links">
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/index.php">
+<a href="<?= appUrl('index.php') ?>">
 Home
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/jobs.php">
+<a href="<?= appUrl('pages/jobs.php') ?>">
 Jobs
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/developers.php">
+<a href="<?= appUrl('pages/developers.php') ?>">
 Developers
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/contact.php">
+<a href="<?= appUrl('pages/contact.php') ?>">
 Contact
 </a>
 </li>
@@ -87,28 +74,42 @@ For Developers
 <ul class="footer-links">
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/browse-jobs.php">
+<a href="<?= appUrl('pages/jobs.php') ?>">
 Browse Jobs
 </a>
 </li>
 
+<?php if ($isDeveloperUser): ?>
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/apply.php">
+<a href="<?= appUrl('pages/apply.php') ?>">
 Apply Now
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/profile.php">
+<a href="<?= appUrl('pages/profile.php') ?>">
 My Profile
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/applications.php">
+<a href="<?= appUrl('pages/applications.php') ?>">
 Applications
 </a>
 </li>
+<?php else: ?>
+<li>
+<a href="<?= appUrl('pages/login.php') ?>">
+Developer Login
+</a>
+</li>
+
+<li>
+<a href="<?= appUrl('pages/register.php') ?>">
+Create Developer Account
+</a>
+</li>
+<?php endif; ?>
 
 </ul>
 
@@ -125,25 +126,25 @@ For Companies
 <ul class="footer-links">
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/post-job.php">
+<a href="<?= appUrl('pages/contact.php') ?>">
 Post a Job
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/browse-developers.php">
+<a href="<?= appUrl('pages/developers.php') ?>">
 Browse Developers
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/resources.php">
+<a href="<?= appUrl('pages/how-it-works.php') ?>">
 Resources
 </a>
 </li>
 
 <li>
-<a href="/hieringfullstackdeveloper/DevHire/pages/pricing.php">
+<a href="<?= appUrl('pages/pricing.php') ?>">
 Pricing
 </a>
 </li>
@@ -190,26 +191,32 @@ San Francisco, CA
 <div class="footer-bottom-left">
 
 <p>
-© 2026 DevHire. All rights reserved.
+&copy; 2026 DevHire. All rights reserved.
 </p>
 
 </div>
 
 <div class="footer-bottom-right">
 
-<a href="/hieringfullstackdeveloper/DevHire/pages/privacy.php">
+<?php if ($isAuthenticated): ?>
+<?= renderLogoutForm('Logout', 'btn-login footer-auth-link') ?>
+
+<span>|</span>
+<?php endif; ?>
+
+<a href="<?= appUrl('pages/privacy.php') ?>">
 Privacy Policy
 </a>
 
 <span>|</span>
 
-<a href="/hieringfullstackdeveloper/DevHire/pages/terms.php">
+<a href="<?= appUrl('pages/terms.php') ?>">
 Terms
 </a>
 
 <span>|</span>
 
-<a href="/hieringfullstackdeveloper/DevHire/pages/cookies.php">
+<a href="<?= appUrl('pages/cookies.php') ?>">
 Cookies
 </a>
 
@@ -217,16 +224,16 @@ Cookies
 
 </div>
 
-<?php
-require_once __DIR__ . '/helpers.php';
-startSecureSession();
-?>
-
 </div>
 
 <div class="footer-gradient"></div>
 
 </footer>
+
+<script>
+window.DEVHIRE_BASE_URL = <?= json_encode(rtrim(APP_BASE_URL, '/'), JSON_UNESCAPED_SLASHES) ?>;
+window.DEVHIRE_CSRF_TOKEN = <?= json_encode(csrfToken(), JSON_UNESCAPED_SLASHES) ?>;
+</script>
 
 <!-- JS -->
 

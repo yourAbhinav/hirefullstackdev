@@ -1,47 +1,39 @@
 <?php
 
-require_once '../includes/helpers.php';
-startSecureSession();
+require_once '../config/db.php';
 
-$_SESSION = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
+		setFlash('error', 'Your session expired. Please reload and try again.');
+		header('Location: ' . appUrl('pages/login.php'));
+		exit;
+	}
 
-if (ini_get('session.use_cookies')) {
-	$params = session_get_cookie_params();
-	setcookie(session_name(), '', time() - 3600, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+	logoutCurrentUser($conn);
+	header('Location: ' . appUrl('index.php'));
+	exit;
 }
 
-session_destroy();
+if (isLoggedIn()) {
+	$page_title = 'Confirm Logout - DevHire';
+	include '../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Signing out - DevHire</title>
-	<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-	<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
-	<script>
-		const firebaseConfig = {
-			apiKey: "AIzaSyAXU64W3PalTEkDHy0CbYkqsHBZsKH0MY0",
-			authDomain: "abhhire-e8807.firebaseapp.com",
-			projectId: "abhhire-e8807",
-			storageBucket: "abhhire-e8807.firebasestorage.app",
-			messagingSenderId: "173557301887",
-			appId: "1:173557301887:web:dd10d71b680477c555354a",
-			measurementId: "G-5KN443QPP4"
-		};
+<section class="page-hero">
+	<div class="page-hero-inner" style="text-align:center; max-width: 720px; margin: 0 auto;">
+		<span class="eyebrow">Secure Session</span>
+		<h1>Confirm logout</h1>
+		<p class="quick-apply-subtitle">Use the button below to end this session and revoke the current remember-me token.</p>
+		<div style="margin-top: 1.5rem; display:flex; justify-content:center; gap: 1rem; flex-wrap: wrap;">
+			<?= renderLogoutForm('Logout Now', 'btn-primary') ?>
+			<a href="<?= appUrl(roleDashboardPath()) ?>" class="btn-secondary">Back to dashboard</a>
+		</div>
+	</div>
+</section>
+<?php
+	include '../includes/footer.php';
+	exit;
+}
 
-		if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-			firebase.initializeApp(firebaseConfig);
-			firebase.auth().signOut().finally(() => {
-				window.location.href = '<?= appUrl('index.php') ?>';
-			});
-		} else {
-			window.location.href = '<?= appUrl('index.php') ?>';
-		}
-	</script>
-</head>
-<body style="background:#0f172a;color:#f8fafc;font-family:Inter,sans-serif;display:grid;place-items:center;min-height:100vh;">
-	<div>Signing out...</div>
-</body>
-</html>
+header('Location: ' . appUrl('index.php'));
+exit;
+?>

@@ -1,7 +1,22 @@
 // DevHire - Main JavaScript
 // ============================================
 
-const DEVHIRE_BASE_URL = window.DEVHIRE_BASE_URL || '/hieringfullstackdeveloper/DevHire';
+const DEVHIRE_BASE_URL = typeof window.DEVHIRE_BASE_URL === 'string'
+    ? window.DEVHIRE_BASE_URL.replace(/\/+$/, '')
+    : '';
+
+const DEVHIRE_CSRF_TOKEN = typeof window.DEVHIRE_CSRF_TOKEN === 'string' ? window.DEVHIRE_CSRF_TOKEN : '';
+
+function apiUrl(path) {
+    const normalizedPath = String(path || '').replace(/^\/+/, '');
+    const basePath = DEVHIRE_BASE_URL !== '' ? DEVHIRE_BASE_URL : '';
+
+    if (normalizedPath === '') {
+        return basePath || '/';
+    }
+
+    return `${basePath}/${normalizedPath}`.replace(/([^:]\/)\/+/g, '$1');
+}
 
 function validateEmail(email) {
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -131,11 +146,12 @@ async function saveJob(jobId, button) {
             setButtonLoading(button, true, 'Saving...');
         }
 
-        const response = await fetch(`${DEVHIRE_BASE_URL}/api/handler.php?action=saveJob`, {
+        const response = await fetch(apiUrl('api/handler.php?action=saveJob'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-CSRF-Token': DEVHIRE_CSRF_TOKEN
             },
             body: JSON.stringify({ job_id: jobId })
         });
@@ -143,7 +159,7 @@ async function saveJob(jobId, button) {
         const result = await response.json().catch(() => ({}));
 
         if (response.status === 401 || response.status === 403) {
-            window.location.href = `${DEVHIRE_BASE_URL}/pages/login.php`;
+            window.location.href = apiUrl('pages/login.php');
             return;
         }
 
@@ -167,11 +183,12 @@ async function saveJob(jobId, button) {
 }
 
 async function removeSavedJob(jobId) {
-    const response = await fetch(`${DEVHIRE_BASE_URL}/api/handler.php?action=removeSavedJob`, {
+    const response = await fetch(apiUrl('api/handler.php?action=removeSavedJob'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-CSRF-Token': DEVHIRE_CSRF_TOKEN
         },
         body: JSON.stringify({ job_id: jobId })
     });

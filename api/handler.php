@@ -54,8 +54,39 @@ function requireLoginApi(): void
 
 function requireAdminApi(): void
 {
-    if (!isAdminLoggedIn()) {
+    if (!isAdmin()) {
         jsonResponse(['success' => false, 'message' => 'Forbidden.'], 403);
+    }
+}
+
+function requireDeveloperApi(): void
+{
+    if (!isDeveloper()) {
+        jsonResponse(['success' => false, 'message' => 'Forbidden.'], 403);
+    }
+}
+
+function apiRequestPayload(): array
+{
+    static $payload = null;
+
+    if (is_array($payload)) {
+        return $payload;
+    }
+
+    $requestBody = json_decode((string) file_get_contents('php://input'), true);
+    $payload = is_array($requestBody) ? $requestBody : $_POST;
+
+    return $payload;
+}
+
+function requireApiCsrf(): void
+{
+    $payload = apiRequestPayload();
+    $token = $payload['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
+
+    if (!verifyCsrf(is_string($token) ? $token : null)) {
+        jsonResponse(['success' => false, 'message' => 'Your session expired. Please reload and try again.'], 403);
     }
 }
 
@@ -67,7 +98,8 @@ function getJobs(): void
     $limit = 10;
     $offset = ($page - 1) * $limit;
 
-    $stmt = $conn->prepare('SELECT * FROM jobs WHERE status = ? ORDER BY featured DESC, created_at DESC LIMIT ? OFFSET ?');
+    // select explicit columns to avoid accidentally exposing new fields
+    $stmt = $conn->prepare('SELECT id, title, company_id, location, job_type, work_mode, salary_min, salary_max, experience_level, tech_stack, applications_count, status, featured, created_at, updated_at FROM jobs WHERE status = ? ORDER BY featured DESC, created_at DESC LIMIT ? OFFSET ?');
     $status = 'active';
     $stmt->bind_param('sii', $status, $limit, $offset);
     $stmt->execute();
@@ -102,8 +134,22 @@ function getApplications(): void
     requireLoginApi();
     global $conn;
 
+    if (isAdmin()) {
+        // Admin view: select explicit columns but avoid exposing sensitive fields like resume_path, phone, email, message, feedback
+        $stmt = $conn->prepare('SELECT id, full_name, job_position, job_id, user_id, status, rating, created_at, updated_at FROM applications ORDER BY created_at DESC');
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $applications = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $stmt->close();
+
+        jsonResponse(['success' => true, 'applications' => $applications]);
+    }
+
+    // Only developer accounts should access personal application history.
+    requireDeveloperApi();
+
     $userId = (int) currentUserId();
-    $stmt = $conn->prepare('SELECT * FROM applications WHERE user_id = ? ORDER BY created_at DESC');
+    $stmt = $conn->prepare('SELECT id, full_name, email, phone, experience, tech_stack, job_position, portfolio_url, message, resume_path, job_id, user_id, status, rating, feedback, created_at, updated_at FROM applications WHERE user_id = ? ORDER BY created_at DESC');
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -111,6 +157,77 @@ function getApplications(): void
     $stmt->close();
 
     jsonResponse(['success' => true, 'applications' => $applications]);
+}
+
+function storeResumeUpload(array $file, string &$error): string
+{
+    $error = '';
+
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return '';
+    }
+
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        $error = 'Resume upload failed. Please try again.';
+        return '';
+    }
+
+    $maxSize = 5 * 1024 * 1024;
+    $allowedExtensions = ['pdf', 'doc', 'docx'];
+    $allowedMimeTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    $extension = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+    $mimeType = '';
+
+    if (($file['size'] ?? 0) > $maxSize) {
+        $error = 'Resume must be 5 MB or smaller.';
+        return '';
+    }
+
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo) {
+            $mimeType = (string) finfo_file($finfo, (string) $file['tmp_name']);
+            finfo_close($finfo);
+        }
+    }
+
+    if (!in_array($extension, $allowedExtensions, true) || ($mimeType !== '' && !in_array($mimeType, $allowedMimeTypes, true))) {
+        $error = 'Only PDF, DOC, or DOCX files are allowed.';
+        return '';
+    }
+
+    $uploadDir = __DIR__ . '/../uploads/resumes/';
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+        $error = 'Unable to prepare the resume upload directory.';
+        return '';
+    }
+
+    $fileName = bin2hex(random_bytes(16)) . '.' . $extension;
+    if (!is_uploaded_file((string) $file['tmp_name']) || !move_uploaded_file((string) $file['tmp_name'], $uploadDir . $fileName)) {
+        $error = 'Unable to save resume file.';
+        return '';
+    }
+
+    return 'uploads/resumes/' . $fileName;
+}
+
+function findActiveJob(mysqli $conn, int $jobId): ?array
+{
+    $stmt = $conn->prepare('SELECT id, title, status FROM jobs WHERE id = ? LIMIT 1');
+    $stmt->bind_param('i', $jobId);
+    $stmt->execute();
+    $job = $stmt->get_result()->fetch_assoc() ?: null;
+    $stmt->close();
+
+    if (empty($job) || ($job['status'] ?? '') !== 'active') {
+        return null;
+    }
+
+    return $job;
 }
 
 function submitApplication(): void
@@ -122,40 +239,45 @@ function submitApplication(): void
     }
 
     requireLoginApi();
+    requireDeveloperApi();
+    requireApiCsrf();
 
-    $fullName = sanitize($_POST['full_name'] ?? $_POST['fullName'] ?? '');
-    $email = sanitize($_POST['email'] ?? '');
-    $phone = sanitize($_POST['phone'] ?? '');
-    $experience = sanitize($_POST['experience'] ?? '');
-    $techStack = sanitize($_POST['tech_stack'] ?? $_POST['techStack'] ?? '');
-    $jobPosition = sanitize($_POST['jobPosition'] ?? '');
-    $portfolio = sanitize($_POST['portfolio'] ?? '');
-    $message = sanitize($_POST['message'] ?? '');
-    $userId = currentUserId();
-    $jobId = !empty($_POST['job_id']) ? (int) $_POST['job_id'] : null;
+    $payload = apiRequestPayload();
 
-    if ($fullName === '' || $email === '' || !validateEmail($email) || $experience === '' || $techStack === '' || $jobPosition === '') {
+    $fullName = sanitize($payload['full_name'] ?? '');
+    $email = normalizeEmail((string) ($payload['email'] ?? ''));
+    $phone = sanitize($payload['phone'] ?? '');
+    $experience = sanitize($payload['experience'] ?? '');
+    $techStack = sanitize($payload['tech_stack'] ?? '');
+    $jobPosition = sanitize($payload['job_position'] ?? '');
+    $portfolio = sanitize($payload['portfolio_url'] ?? '');
+    $message = sanitize($payload['message'] ?? '');
+    $userId = (int) currentUserId();
+    $jobId = !empty($payload['job_id']) ? (int) $payload['job_id'] : null;
+
+    if ($jobId !== null) {
+        $job = findActiveJob($conn, $jobId);
+        if ($job === null) {
+            jsonResponse(['success' => false, 'message' => 'The selected job is not available.'], 422);
+        }
+
+        $jobPosition = (string) ($job['title'] ?? $jobPosition);
+    }
+
+    if ($fullName === '' || $email === '' || !validateEmail($email) || $phone === '' || $experience === '' || $techStack === '' || $jobPosition === '') {
         jsonResponse(['success' => false, 'message' => 'Missing required fields.'], 422);
     }
 
-    $duplicateSql = 'SELECT id FROM applications WHERE email = ?';
-    $duplicateParams = [$email];
-    $duplicateTypes = 's';
+    $duplicateSql = 'SELECT id FROM applications WHERE user_id = ?';
+    $duplicateParams = [$userId];
+    $duplicateTypes = 'i';
 
-    if (!empty($userId)) {
-        if (!empty($jobId)) {
-            $duplicateSql .= ' AND user_id = ? AND job_id = ?';
-            $duplicateParams[] = (int) $userId;
-            $duplicateParams[] = (int) $jobId;
-            $duplicateTypes .= 'ii';
-        } else {
-            $duplicateSql .= ' AND user_id = ? AND jobPosition = ?';
-            $duplicateParams[] = (int) $userId;
-            $duplicateParams[] = $jobPosition;
-            $duplicateTypes .= 'is';
-        }
+    if ($jobId !== null) {
+        $duplicateSql .= ' AND job_id = ?';
+        $duplicateParams[] = $jobId;
+        $duplicateTypes .= 'i';
     } else {
-        $duplicateSql .= ' AND jobPosition = ?';
+        $duplicateSql .= ' AND job_position = ?';
         $duplicateParams[] = $jobPosition;
         $duplicateTypes .= 's';
     }
@@ -171,74 +293,108 @@ function submitApplication(): void
         jsonResponse(['success' => false, 'message' => 'You already submitted this application.'], 409);
     }
 
-    $fullNameColumn = dbColumnExists($conn, 'applications', 'full_name') ? 'full_name' : 'fullName';
-    $techColumn = dbColumnExists($conn, 'applications', 'tech_stack') ? 'tech_stack' : 'techStack';
-
-    $resumeName = '';
-    if (!empty($_FILES['resume']['name']) && ($_FILES['resume']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $resumeName = basename($_FILES['resume']['name']);
+    $resumeError = '';
+    $resumePath = !empty($payload['resume']) ? '' : '';
+    $resumePath = !empty($_FILES['resume']['name'] ?? '') ? storeResumeUpload($_FILES['resume'], $resumeError) : '';
+    if ($resumeError !== '') {
+        jsonResponse(['success' => false, 'message' => $resumeError], 422);
     }
+
     $status = 'pending';
+    $columns = [
+        'full_name',
+        'email',
+        'phone',
+        'experience',
+        'tech_stack',
+        'job_position',
+        'portfolio_url',
+        'message',
+        'resume_path',
+        'user_id',
+        'status',
+    ];
 
-    if (!empty($jobId)) {
-        $sql = 'INSERT INTO applications (' . implode(', ', [
-            $fullNameColumn,
-            'email',
-            'phone',
-            'experience',
-            $techColumn,
-            'jobPosition',
-            'portfolio',
-            'message',
-            'resume',
-            'job_id',
-            'user_id',
-            'status',
-        ]) . ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    $placeholders = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+    $types = 'sssssssssis';
+    $params = [
+        $fullName,
+        $email,
+        $phone,
+        $experience,
+        $techStack,
+        $jobPosition,
+        $portfolio,
+        $message,
+        $resumePath,
+        $userId,
+        $status,
+    ];
 
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('sssssssssiis', $fullName, $email, $phone, $experience, $techStack, $jobPosition, $portfolio, $message, $resumeName, $jobId, $userId, $status);
-    } else {
-        $sql = 'INSERT INTO applications (' . implode(', ', [
-            $fullNameColumn,
-            'email',
-            'phone',
-            'experience',
-            $techColumn,
-            'jobPosition',
-            'portfolio',
-            'message',
-            'resume',
-            'user_id',
-            'status',
-        ]) . ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('sssssssssis', $fullName, $email, $phone, $experience, $techStack, $jobPosition, $portfolio, $message, $resumeName, $userId, $status);
+    if ($jobId !== null && dbColumnExists($conn, 'applications', 'job_id')) {
+        $columns[] = 'job_id';
+        $placeholders = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+        $types = 'sssssssssisi';
+        $params[] = $jobId;
     }
+
+    $sql = 'INSERT INTO applications (' . implode(', ', $columns) . ') VALUES (' . $placeholders . ')';
+    $stmt = $conn->prepare($sql);
+
+    if (!$stmt) {
+        if (!empty($resumePath)) {
+            @unlink(__DIR__ . '/../' . $resumePath);
+        }
+        jsonResponse(['success' => false, 'message' => 'Error submitting application.'], 500);
+    }
+
+    $stmt->bind_param($types, ...$params);
 
     if ($stmt->execute()) {
+        $stmt->close();
+
+        // increment applications_count for the associated job, if any
+        if ($jobId !== null && $jobId > 0) {
+            $inc = $conn->prepare('UPDATE jobs SET applications_count = applications_count + 1 WHERE id = ?');
+            if ($inc) {
+                $inc->bind_param('i', $jobId);
+                $inc->execute();
+                $inc->close();
+            }
+        }
+
         jsonResponse(['success' => true, 'message' => 'Application submitted successfully.']);
     }
 
+    if (!empty($resumePath)) {
+        @unlink(__DIR__ . '/../' . $resumePath);
+    }
+
+    $stmt->close();
     jsonResponse(['success' => false, 'message' => 'Error submitting application.'], 500);
 }
 
 function saveJob(): void
 {
     requireLoginApi();
+    requireDeveloperApi();
+    requireApiCsrf();
     global $conn;
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse(['success' => false, 'message' => 'Invalid request method.'], 405);
     }
 
-    $payload = json_decode(file_get_contents('php://input'), true);
+    $payload = apiRequestPayload();
     $jobId = (int) ($payload['job_id'] ?? $_POST['job_id'] ?? 0);
     $userId = (int) currentUserId();
 
     if ($jobId <= 0) {
         jsonResponse(['success' => false, 'message' => 'Invalid job selected.'], 422);
+    }
+
+    if (findActiveJob($conn, $jobId) === null) {
+        jsonResponse(['success' => false, 'message' => 'Job not found or no longer active.'], 404);
     }
 
     $stmt = $conn->prepare('INSERT IGNORE INTO saved_jobs (user_id, job_id, created_at) VALUES (?, ?, NOW())');
@@ -252,6 +408,7 @@ function saveJob(): void
 function getSavedJobs(): void
 {
     requireLoginApi();
+    requireDeveloperApi();
     global $conn;
 
     $userId = (int) currentUserId();
@@ -268,13 +425,15 @@ function getSavedJobs(): void
 function removeSavedJob(): void
 {
     requireLoginApi();
+    requireDeveloperApi();
+    requireApiCsrf();
     global $conn;
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse(['success' => false, 'message' => 'Invalid request method.'], 405);
     }
 
-    $payload = json_decode(file_get_contents('php://input'), true);
+    $payload = apiRequestPayload();
     $jobId = (int) ($payload['job_id'] ?? $_POST['job_id'] ?? 0);
     $userId = (int) currentUserId();
 
@@ -292,14 +451,15 @@ function removeSavedJob(): void
 
 function sendMessage(): void
 {
-    requireLoginApi();
+    requireDeveloperApi();
+    requireApiCsrf();
     global $conn;
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse(['success' => false, 'message' => 'Invalid request method.'], 405);
     }
 
-    $payload = json_decode(file_get_contents('php://input'), true);
+    $payload = apiRequestPayload();
     $receiverId = (int) ($payload['receiver_id'] ?? $_POST['receiver_id'] ?? 0);
     $subject = sanitize($payload['subject'] ?? $_POST['subject'] ?? '');
     $message = sanitize($payload['message'] ?? $_POST['message'] ?? '');
@@ -307,6 +467,17 @@ function sendMessage(): void
 
     if ($receiverId <= 0 || $message === '') {
         jsonResponse(['success' => false, 'message' => 'Message and recipient are required.'], 422);
+    }
+
+    // Messages are stored against user IDs only; receiver must be a valid user account.
+    $receiverStmt = $conn->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
+    $receiverStmt->bind_param('i', $receiverId);
+    $receiverStmt->execute();
+    $receiverExists = $receiverStmt->get_result()->num_rows > 0;
+    $receiverStmt->close();
+
+    if (!$receiverExists) {
+        jsonResponse(['success' => false, 'message' => 'Invalid message recipient.'], 422);
     }
 
     $stmt = $conn->prepare('INSERT INTO messages (sender_id, receiver_id, subject, message, read_status, created_at) VALUES (?, ?, ?, ?, 0, NOW())');
@@ -330,4 +501,3 @@ function getMessages(): void
 
     jsonResponse(['success' => true, 'messages' => $messages]);
 }
-?>

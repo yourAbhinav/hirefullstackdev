@@ -7,8 +7,8 @@ $page_title = 'Admin Dashboard - DevHire';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
-$nameColumn = dbColumnExists($conn, 'applications', 'full_name') ? 'a.full_name' : 'a.fullName';
-$techColumn = dbColumnExists($conn, 'applications', 'tech_stack') ? 'a.tech_stack' : 'a.techStack';
+$nameColumn = 'a.full_name';
+$techColumn = 'a.tech_stack';
 $allowedStatuses = ['pending', 'reviewing', 'shortlisted', 'rejected', 'hired'];
 
 $dashboardNotice = $_SESSION['dashboard_notice'] ?? '';
@@ -35,6 +35,21 @@ function dashboardRedirect(array $query = []): void
 
     header('Location: ' . $url);
     exit;
+}
+
+function dashboardTableExists(mysqli $conn, string $tableName): bool
+{
+    $stmt = $conn->prepare('SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1');
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('s', $tableName);
+    $stmt->execute();
+    $exists = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+
+    return $exists;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -81,10 +96,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dashboardRedirect($returnQuery);
         }
 
+        // First fetch job_id so we can decrement applications_count if needed
+        $jobId = null;
+        $jobFetch = $conn->prepare('SELECT job_id FROM applications WHERE id = ? LIMIT 1');
+        if ($jobFetch) {
+            $jobFetch->bind_param('i', $applicationId);
+            $jobFetch->execute();
+            $row = $jobFetch->get_result()->fetch_assoc();
+            $jobId = isset($row['job_id']) && $row['job_id'] !== null ? (int) $row['job_id'] : null;
+            $jobFetch->close();
+        }
+
         $stmt = $conn->prepare('DELETE FROM applications WHERE id = ?');
         $stmt->bind_param('i', $applicationId);
         $stmt->execute();
         $stmt->close();
+
+        // Decrement applications_count for the job, ensuring it doesn't go negative
+        if ($jobId !== null && $jobId > 0) {
+            $dec = $conn->prepare('UPDATE jobs SET applications_count = GREATEST(applications_count - 1, 0) WHERE id = ?');
+            if ($dec) {
+                $dec->bind_param('i', $jobId);
+                $dec->execute();
+                $dec->close();
+            }
+        }
 
         $_SESSION['dashboard_notice'] = 'Application deleted successfully.';
         dashboardRedirect($returnQuery);
@@ -115,7 +151,7 @@ if ($search !== '') {
         $nameColumn . ' LIKE ?',
         'a.email LIKE ?',
         'a.phone LIKE ?',
-        'a.jobPosition LIKE ?',
+        'a.job_position LIKE ?',
         $techColumn . ' LIKE ?',
         'COALESCE(au.name, u.fullName, \'\') LIKE ?',
     ]) . ')';
@@ -129,7 +165,7 @@ if ($search !== '') {
 
 $whereSql = !empty($whereParts) ? 'WHERE ' . implode(' AND ', $whereParts) : '';
 
-$countSql = 'SELECT COUNT(*) AS total FROM applications a LEFT JOIN admin_users au ON au.id = a.user_id LEFT JOIN users u ON u.id = a.user_id ' . $whereSql;
+$countSql = 'SELECT COUNT(*) AS total FROM applications a LEFT JOIN users u ON u.id = a.user_id ' . $whereSql;
 $countStmt = $conn->prepare($countSql);
 if (!empty($params)) {
     $countStmt->bind_param($types, ...$params);
@@ -144,13 +180,13 @@ if ($page > $totalPages) {
     $offset = ($page - 1) * $perPage;
 }
 
-$dataSql = 'SELECT a.id, a.email, a.phone, a.experience, a.jobPosition, a.portfolio, a.message, a.resume, a.job_id, a.user_id, a.status, a.feedback, a.rating, a.created_at, ' .
+$dataSql = 'SELECT a.id, a.full_name, a.email, a.phone, a.experience, a.tech_stack, a.job_position, a.portfolio_url, a.message, a.resume_path, a.job_id, a.user_id, a.status, a.feedback, a.rating, a.created_at, ' .
     $nameColumn . ' AS applicant_name, ' .
     $techColumn . ' AS tech_stack_value, ' .
-    'COALESCE(au.name, u.fullName, \'\') AS account_name, ' .
-    'COALESCE(au.email, u.email, a.email) AS account_email, ' .
-    'COALESCE(au.photo, u.profile_image, \'\') AS account_photo ' .
-    'FROM applications a LEFT JOIN admin_users au ON au.id = a.user_id LEFT JOIN users u ON u.id = a.user_id ' .
+    'COALESCE(u.fullName, u.email, \'\') AS account_name, ' .
+    'COALESCE(u.email, a.email) AS account_email, ' .
+    'COALESCE(u.profile_image, \'\') AS account_photo ' .
+    'FROM applications a LEFT JOIN users u ON u.id = a.user_id ' .
     $whereSql . ' ORDER BY a.created_at DESC LIMIT ? OFFSET ?';
 
 $dataStmt = $conn->prepare($dataSql);
@@ -168,7 +204,7 @@ $dataStmt->close();
 
 $selectedApplication = null;
 if ($currentQuery['view'] > 0) {
-    $detailStmt = $conn->prepare('SELECT a.id, a.email, a.phone, a.experience, a.jobPosition, a.portfolio, a.message, a.resume, a.job_id, a.user_id, a.status, a.feedback, a.rating, a.created_at, ' . $nameColumn . ' AS applicant_name, ' . $techColumn . ' AS tech_stack_value, COALESCE(au.name, u.fullName, \'\') AS account_name, COALESCE(au.email, u.email, a.email) AS account_email, COALESCE(au.photo, u.profile_image, \'\') AS account_photo FROM applications a LEFT JOIN admin_users au ON au.id = a.user_id LEFT JOIN users u ON u.id = a.user_id WHERE a.id = ? LIMIT 1');
+    $detailStmt = $conn->prepare('SELECT a.id, a.full_name, a.email, a.phone, a.experience, a.tech_stack, a.job_position, a.portfolio_url, a.message, a.resume_path, a.job_id, a.user_id, a.status, a.feedback, a.rating, a.created_at, ' . $nameColumn . ' AS applicant_name, ' . $techColumn . ' AS tech_stack_value, COALESCE(u.fullName, u.email, \'\') AS account_name, COALESCE(u.email, a.email) AS account_email, COALESCE(u.profile_image, \'\') AS account_photo FROM applications a LEFT JOIN users u ON u.id = a.user_id WHERE a.id = ? LIMIT 1');
     $detailId = $currentQuery['view'];
     $detailStmt->bind_param('i', $detailId);
     $detailStmt->execute();
@@ -176,13 +212,57 @@ if ($currentQuery['view'] > 0) {
     $detailStmt->close();
 }
 
-$totalApplicationsStmt = $conn->query('SELECT COUNT(*) AS total FROM applications');
-$totalApplications = (int) ($totalApplicationsStmt->fetch_assoc()['total'] ?? 0);
-$pendingApplications = (int) ($conn->query("SELECT COUNT(*) AS total FROM applications WHERE status = 'pending'")->fetch_assoc()['total'] ?? 0);
-$reviewingApplications = (int) ($conn->query("SELECT COUNT(*) AS total FROM applications WHERE status = 'reviewing'")->fetch_assoc()['total'] ?? 0);
-$shortlistedApplications = (int) ($conn->query("SELECT COUNT(*) AS total FROM applications WHERE status = 'shortlisted'")->fetch_assoc()['total'] ?? 0);
-$totalSavedJobs = (int) ($conn->query('SELECT COUNT(*) AS total FROM saved_jobs')->fetch_assoc()['total'] ?? 0);
-$totalMessages = (int) ($conn->query('SELECT COUNT(*) AS total FROM messages')->fetch_assoc()['total'] ?? 0);
+$countStmt = $conn->prepare('SELECT COUNT(*) AS total FROM applications');
+$countStmt->execute();
+$totalApplications = (int) ($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
+$countStmt->close();
+
+$statusStmt = $conn->prepare('SELECT COUNT(*) AS total FROM applications WHERE status = ?');
+$status = 'pending';
+$statusStmt->bind_param('s', $status);
+$statusStmt->execute();
+$pendingApplications = (int) ($statusStmt->get_result()->fetch_assoc()['total'] ?? 0);
+
+$status = 'reviewing';
+$statusStmt->bind_param('s', $status);
+$statusStmt->execute();
+$reviewingApplications = (int) ($statusStmt->get_result()->fetch_assoc()['total'] ?? 0);
+
+$status = 'shortlisted';
+$statusStmt->bind_param('s', $status);
+$statusStmt->execute();
+$shortlistedApplications = (int) ($statusStmt->get_result()->fetch_assoc()['total'] ?? 0);
+$statusStmt->close();
+
+$totalSavedJobs = 0;
+if (dashboardTableExists($conn, 'saved_jobs')) {
+    $savedJobsStmt = $conn->prepare('SELECT COUNT(*) AS total FROM saved_jobs');
+    $savedJobsStmt->execute();
+    $totalSavedJobs = (int) ($savedJobsStmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $savedJobsStmt->close();
+}
+
+$totalMessages = 0;
+if (dashboardTableExists($conn, 'messages')) {
+    $messagesStmt = $conn->prepare('SELECT COUNT(*) AS total FROM messages');
+    $messagesStmt->execute();
+    $totalMessages = (int) ($messagesStmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $messagesStmt->close();
+}
+
+$totalContactMessages = 0;
+$recentContacts = [];
+if (dashboardTableExists($conn, 'contact_messages')) {
+    $contactStmt = $conn->prepare('SELECT COUNT(*) AS total FROM contact_messages');
+    $contactStmt->execute();
+    $totalContactMessages = (int) ($contactStmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $contactStmt->close();
+
+    $recentContactsStmt = $conn->prepare('SELECT id, full_name, email, subject, message, status, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 5');
+    $recentContactsStmt->execute();
+    $recentContacts = $recentContactsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $recentContactsStmt->close();
+}
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -205,7 +285,7 @@ include '../includes/navbar.php';
                     <span><?= htmlspecialchars(currentUserEmail(), ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
             </div>
-            <a class="btn-secondary btn-inline" href="<?= appUrl('auth/logout.php') ?>">Logout</a>
+            <?= renderLogoutForm('Logout', 'btn-secondary btn-inline') ?>
         </div>
     </div>
 
@@ -245,7 +325,39 @@ include '../includes/navbar.php';
             <span>Messages</span>
             <strong><?= number_format($totalMessages) ?></strong>
         </article>
+        <article class="stat-card subtle">
+            <span>Contact Messages</span>
+            <strong><?= number_format($totalContactMessages) ?></strong>
+        </article>
     </div>
+
+    <section class="panel" style="margin-top: 2rem;">
+        <div class="panel-header">
+            <div>
+                <span class="eyebrow">Support</span>
+                <h2>Recent contact messages</h2>
+            </div>
+        </div>
+        <?php if (!empty($recentContacts)): ?>
+            <div class="profile-list">
+                <?php foreach ($recentContacts as $contactMessage): ?>
+                    <article class="profile-item-card">
+                        <div>
+                            <strong><?= htmlspecialchars($contactMessage['subject'] ?? 'Contact message', ENT_QUOTES, 'UTF-8') ?></strong>
+                            <p><?= htmlspecialchars($contactMessage['full_name'] ?? 'Guest', ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars($contactMessage['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+                        </div>
+                        <div class="profile-item-meta">
+                            <span><?= htmlspecialchars(ucfirst((string) ($contactMessage['status'] ?? 'new')), ENT_QUOTES, 'UTF-8') ?></span>
+                            <span><?= htmlspecialchars(date('M j, Y', strtotime((string) $contactMessage['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
+                        </div>
+                        <p class="profile-note"><?= htmlspecialchars(strlen((string) ($contactMessage['message'] ?? '')) > 160 ? substr((string) $contactMessage['message'], 0, 160) . '...' : (string) ($contactMessage['message'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="empty-state">No contact messages yet.</div>
+        <?php endif; ?>
+    </section>
 
     <form class="dashboard-filters" method="GET">
         <div class="form-group">
@@ -279,7 +391,7 @@ include '../includes/navbar.php';
             <div class="details-grid">
                 <div><span>Email</span><strong><?= htmlspecialchars($selectedApplication['email'], ENT_QUOTES, 'UTF-8') ?></strong></div>
                 <div><span>Phone</span><strong><?= htmlspecialchars($selectedApplication['phone'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Position</span><strong><?= htmlspecialchars($selectedApplication['jobPosition'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
+                <div><span>Position</span><strong><?= htmlspecialchars($selectedApplication['job_position'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
                 <div><span>Tech Stack</span><strong><?= htmlspecialchars($selectedApplication['tech_stack_value'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
                 <div><span>Experience</span><strong><?= htmlspecialchars($selectedApplication['experience'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
                 <div><span>Status</span><strong class="status-badge status-<?= htmlspecialchars($selectedApplication['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($selectedApplication['status']), ENT_QUOTES, 'UTF-8') ?></strong></div>
@@ -287,8 +399,8 @@ include '../includes/navbar.php';
             <div class="details-copy">
                 <div>
                     <span>Portfolio</span>
-                    <?php if (!empty($selectedApplication['portfolio'])): ?>
-                        <p><a href="<?= htmlspecialchars($selectedApplication['portfolio'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open portfolio</a></p>
+                    <?php if (!empty($selectedApplication['portfolio_url'])): ?>
+                        <p><a href="<?= htmlspecialchars($selectedApplication['portfolio_url'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open portfolio</a></p>
                     <?php else: ?>
                         <p>Not provided</p>
                     <?php endif; ?>
@@ -333,14 +445,14 @@ include '../includes/navbar.php';
                             <tr>
                                 <td>
                                     <strong><?= htmlspecialchars($application['applicant_name'] ?: $application['account_name'] ?: $application['email'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                    <span class="table-subtext">#<?= (int) $application['id'] ?> · <?= htmlspecialchars(date('M j, Y', strtotime($application['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
+                                    <span class="table-subtext">#<?= (int) $application['id'] ?> &middot; <?= htmlspecialchars(date('M j, Y', strtotime($application['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
                                 </td>
                                 <td>
                                     <div><?= htmlspecialchars($application['email'], ENT_QUOTES, 'UTF-8') ?></div>
                                     <span class="table-subtext"><?= htmlspecialchars($application['phone'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span>
                                 </td>
                                 <td>
-                                    <div><?= htmlspecialchars($application['jobPosition'] ?? '-', ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div><?= htmlspecialchars($application['job_position'] ?? '-', ENT_QUOTES, 'UTF-8') ?></div>
                                     <span class="table-subtext"><?= htmlspecialchars($application['tech_stack_value'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span>
                                 </td>
                                 <td><?= htmlspecialchars($application['experience'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
