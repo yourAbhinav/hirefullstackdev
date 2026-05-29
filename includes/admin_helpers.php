@@ -514,9 +514,41 @@ function applicationResumeExistsOnDisk(?string $resumePath): bool
         return false;
     }
 
-    $fullPath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($resumePath, '/'));
+    $fullPath = resolveApplicationResumePath($resumePath, $projectRoot);
 
-    return is_file($fullPath);
+    return $fullPath !== null && is_file($fullPath);
+}
+
+/**
+ * Resolve a resume path to an absolute filesystem path under uploads/resumes.
+ */
+function resolveApplicationResumePath(?string $resumePath, ?string $projectRoot = null): ?string
+{
+    if (!applicationHasResume($resumePath)) {
+        return null;
+    }
+
+    $projectRoot = $projectRoot ?? realpath(__DIR__ . '/..');
+    if ($projectRoot === false || $projectRoot === null) {
+        return null;
+    }
+
+    $normalizedResumePath = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim((string) $resumePath, '\\/'));
+    $candidatePath = $projectRoot . DIRECTORY_SEPARATOR . $normalizedResumePath;
+    $realPath = realpath($candidatePath);
+
+    if ($realPath === false) {
+        return null;
+    }
+
+    $normalizedRealPath = str_replace('\\', '/', $realPath);
+    $normalizedUploadsDir = str_replace('\\', '/', $projectRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'resumes');
+
+    if (strpos($normalizedRealPath, $normalizedUploadsDir) !== 0) {
+        return null;
+    }
+
+    return $realPath;
 }
 
 /**

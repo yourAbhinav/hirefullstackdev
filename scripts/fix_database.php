@@ -105,8 +105,37 @@ if ($admins->num_rows > 0) {
 	echo "  ○ No admins found in users table to migrate\n";
 }
 
-// Step 3: Update users table to remove admin role (developers and companies only)
-echo "\nStep 3: Cleaning up users table...\n";
+// Step 3: Align applications table schema for current admin workflow
+echo "\nStep 3: Aligning applications table schema...\n";
+
+$applicationsColumns = [
+	'admin_notes' => 'LONGTEXT DEFAULT NULL',
+	'interview_date' => 'DATETIME DEFAULT NULL',
+];
+
+foreach ($applicationsColumns as $colName => $colDef) {
+	try {
+		$conn->query("DESCRIBE applications $colName");
+		echo "  ○ Column '$colName' already exists\n";
+	} catch (Throwable $e) {
+		try {
+			$conn->query("ALTER TABLE applications ADD COLUMN $colName $colDef");
+			echo "  ✓ Added column '$colName'\n";
+		} catch (Throwable $ex) {
+			echo "  ✗ Failed to add '$colName': " . $ex->getMessage() . "\n";
+		}
+	}
+}
+
+try {
+	$conn->query("ALTER TABLE applications MODIFY status ENUM('pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlisted') NOT NULL DEFAULT 'pending'");
+	echo "  ✓ Updated applications.status enum\n";
+} catch (Throwable $e) {
+	echo "  ✗ Failed to update applications.status enum: " . $e->getMessage() . "\n";
+}
+
+// Step 4: Update users table to remove admin role (developers and companies only)
+echo "\nStep 4: Cleaning up users table...\n";
 
 try {
 	// Get count of admins before
@@ -126,8 +155,8 @@ try {
 	echo "  ✗ Error cleaning users table: " . $ex->getMessage() . "\n";
 }
 
-// Step 4: Verify schema
-echo "\nStep 4: Verifying final schema...\n";
+// Step 5: Verify schema
+echo "\nStep 5: Verifying final schema...\n";
 
 $usersCols = [];
 $result = $conn->query('DESCRIBE users');
@@ -144,6 +173,36 @@ foreach ($requiredCols as $col) {
 		echo "  ✗ users.$col MISSING\n";
 		$allPresent = false;
 	}
+}
+
+// Check applications table
+try {
+	$appColumns = [];
+	$result = $conn->query('DESCRIBE applications');
+	while ($row = $result->fetch_assoc()) {
+		$appColumns[] = $row['Field'];
+	}
+
+	foreach (['admin_notes', 'interview_date'] as $col) {
+		if (in_array($col, $appColumns)) {
+			echo "  ✓ applications.$col exists\n";
+		} else {
+			echo "  ✗ applications.$col MISSING\n";
+			$allPresent = false;
+		}
+	}
+
+	$result = $conn->query('DESCRIBE applications status');
+	$row = $result->fetch_assoc();
+	if ($row && strpos($row['Type'], "approved") !== false && strpos($row['Type'], "reviewed") !== false && strpos($row['Type'], "interview") !== false) {
+		echo "  ✓ applications.status enum is aligned\n";
+	} else {
+		echo "  ✗ applications.status enum still mismatched\n";
+		$allPresent = false;
+	}
+} catch (Throwable $e) {
+	echo "  ✗ applications table error: " . $e->getMessage() . "\n";
+	$allPresent = false;
 }
 
 // Check admin_accounts

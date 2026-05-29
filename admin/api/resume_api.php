@@ -40,14 +40,8 @@ switch ($action) {
         logAdminAction($conn, $admin['id'], 'view_resume', 'application', $applicationId, 
             null, ['applicant' => $application['full_name']]);
         
-        // Get file info using project root instead of DOCUMENT_ROOT
-        $projectRoot = realpath(__DIR__ . '/../../');
-        $resumePath = $projectRoot . '/' . ltrim($application['resume_path'], '/');
-        
-        // Ensure path is within uploads directory to prevent traversal
-        $realPath = realpath($resumePath);
-        $uploadsDir = $projectRoot . '/uploads/resumes';
-        if ($realPath === false || strpos($realPath, $uploadsDir) !== 0) {
+        $resumePath = resolveApplicationResumePath($application['resume_path']);
+        if ($resumePath === null) {
             echo json_encode(['success' => false, 'message' => 'Invalid resume path']);
             exit;
         }

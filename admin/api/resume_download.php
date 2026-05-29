@@ -61,14 +61,9 @@ if (!$application || empty($application['resume_path'])) {
     exit;
 }
 
-// Get file path using project root instead of DOCUMENT_ROOT
-$projectRoot = realpath(__DIR__ . '/../../');
-$resumePath = $projectRoot . '/' . ltrim($application['resume_path'], '/');
-
-// Ensure path is within uploads directory to prevent traversal
-$realPath = realpath($resumePath);
-$uploadsDir = $projectRoot . '/uploads/resumes';
-if ($realPath === false || strpos($realPath, $uploadsDir) !== 0) {
+// Resolve the resume path under uploads/resumes with normalized separators.
+$resumePath = resolveApplicationResumePath($application['resume_path']);
+if ($resumePath === null) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Invalid resume path']);
     exit;

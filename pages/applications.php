@@ -31,10 +31,11 @@ $applicationStmt->close();
 
 $statusClasses = [
 	'pending' => 'application-status-pending',
-	'reviewing' => 'application-status-reviewing',
+	'approved' => 'application-status-approved',
+	'interview' => 'application-status-interview',
+	'reviewed' => 'application-status-reviewed',
 	'shortlisted' => 'application-status-shortlisted',
 	'rejected' => 'application-status-rejected',
-	'hired' => 'application-status-hired'
 ];
 ?>
 

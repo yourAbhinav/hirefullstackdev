@@ -244,7 +244,7 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
                 <option value="approve">Approve Selected</option>
                 <option value="reject">Reject Selected</option>
                 <option value="interview">Schedule Interview</option>
-                <option value="review">Mark as Reviewed</option>
+                <option value="reviewed">Mark as Reviewed</option>
                 <option value="shortlist">Add to Shortlist</option>
                 <option value="delete">Delete Selected</option>
             </select>

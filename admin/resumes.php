@@ -406,18 +406,4 @@ function getFileIcon(filename) {
 }
 </script>
 
-<?php
-function getFileIcon($filename) {
-    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    $icons = [
-        'pdf' => 'pdf',
-        'doc' => 'word',
-        'docx' => 'word',
-        'txt' => 'alt',
-        'rtf' => 'alt'
-    ];
-    return $icons[$ext] ?? 'alt';
-}
-?>
-
-require_once 'includes/admin_footer.php';
+<?php require_once 'includes/admin_footer.php'; ?>

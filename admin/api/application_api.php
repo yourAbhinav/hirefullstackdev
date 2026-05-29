@@ -189,7 +189,7 @@ switch ($action) {
     case 'bulk_approve':
     case 'bulk_reject':
     case 'bulk_interview':
-    case 'bulk_review':
+    case 'bulk_reviewed':
     case 'bulk_shortlist':
     case 'bulk_delete':
         requireAdminPermission($conn, 'edit_applications');
@@ -207,13 +207,26 @@ switch ($action) {
         $applicationIds = array_map('intval', $applicationIds);
         $placeholders = str_repeat('?,', count($applicationIds) - 1) . '?';
         $baseAction = str_replace('bulk_', '', $action);
+        $statusMap = [
+            'approve' => 'approved',
+            'reject' => 'rejected',
+            'interview' => 'interview',
+            'reviewed' => 'reviewed',
+            'shortlist' => 'shortlisted',
+        ];
 
         if ($baseAction === 'delete') {
             $stmt = $conn->prepare("DELETE FROM applications WHERE id IN ($placeholders)");
             $stmt->bind_param(str_repeat('i', count($applicationIds)), ...$applicationIds);
         } else {
+            if (!isset($statusMap[$baseAction])) {
+                echo json_encode(['success' => false, 'message' => 'Invalid bulk status action']);
+                exit;
+            }
+
+            $newStatus = $statusMap[$baseAction];
             $stmt = $conn->prepare("UPDATE applications SET status = ?, updated_at = NOW() WHERE id IN ($placeholders)");
-            $params = array_merge([$baseAction], $applicationIds);
+            $params = array_merge([$newStatus], $applicationIds);
             $types = 's' . str_repeat('i', count($applicationIds));
             $stmt->bind_param($types, ...$params);
         }
@@ -232,7 +245,7 @@ switch ($action) {
                 $result = $checkStmt->get_result()->fetch_assoc();
                 $checkStmt->close();
                 
-                $actualStatus = $result['status'] ?? $baseAction;
+                $actualStatus = $result['status'] ?? ($statusMap[$baseAction] ?? $baseAction);
                 logAdminAction($conn, $admin['id'], $action, 'application', null, null, 
                     ['affected_count' => $affected, 'new_status' => $actualStatus]);
                 
