@@ -263,7 +263,7 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
                                 </span>
                             </td>
                             <td>
-                                <?= time_elapsed_string($job['created_at']) ?>
+                                <span class="time-ago" data-ts="<?= htmlspecialchars($job['created_at']) ?>"><?= time_elapsed_string($job['created_at']) ?></span>
                             </td>
                             <td>
                                 <div class="action-buttons">

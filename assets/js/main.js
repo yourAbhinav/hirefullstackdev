@@ -403,6 +403,47 @@ function lazyLoadImages() {
     images.forEach((image) => imageObserver.observe(image));
 }
 
+// Keep any server-rendered "time-ago" elements fresh on public pages.
+(function () {
+    'use strict';
+    function formatTimeAgoClient(ts) {
+        if (!ts) return 'just now';
+        var t = Date.parse(ts);
+        if (isNaN(t)) return 'just now';
+        var seconds = Math.floor((Date.now() - t) / 1000);
+        if (seconds < 45) return 'just now';
+        var units = [
+            { s: 31536000, label: 'year' },
+            { s: 2592000, label: 'month' },
+            { s: 604800, label: 'week' },
+            { s: 86400, label: 'day' },
+            { s: 3600, label: 'hour' },
+            { s: 60, label: 'minute' }
+        ];
+        for (var i = 0; i < units.length; i++) {
+            var count = Math.floor(seconds / units[i].s);
+            if (count >= 1) {
+                return count + ' ' + units[i].label + (count === 1 ? '' : 's') + ' ago';
+            }
+        }
+        return 'just now';
+    }
+
+    function updateTimeAgoPublic() {
+        document.querySelectorAll('.time-ago').forEach(function (el) {
+            var ts = el.dataset.ts;
+            if (ts) {
+                el.textContent = formatTimeAgoClient(ts);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        updateTimeAgoPublic();
+        setInterval(updateTimeAgoPublic, 60 * 1000);
+    });
+})();
+
 function init() {
     setupMobileMenu();
     setupStickyNavbar();

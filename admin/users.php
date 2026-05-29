@@ -241,10 +241,14 @@ $providers = $conn->query("SELECT DISTINCT provider FROM users")->fetch_all(MYSQ
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?= $user['last_login_at'] ? time_elapsed_string($user['last_login_at']) : 'Never' ?>
+                                <?php if ($user['last_login_at']): ?>
+                                    <span class="time-ago" data-ts="<?= htmlspecialchars($user['last_login_at']) ?>"><?= time_elapsed_string($user['last_login_at']) ?></span>
+                                <?php else: ?>
+                                    Never
+                                <?php endif; ?>
                             </td>
                             <td>
-                                <?= time_elapsed_string($user['created_at']) ?>
+                                <span class="time-ago" data-ts="<?= htmlspecialchars($user['created_at']) ?>"><?= time_elapsed_string($user['created_at']) ?></span>
                             </td>
                             <td>
                                 <div class="action-buttons">

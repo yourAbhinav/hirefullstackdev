@@ -300,7 +300,7 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
                                 <span class="date-cell"><?= date('M j, Y', strtotime($app['created_at'])) ?></span>
                             </td>
                             <td>
-                                <span class="time-ago"><?= time_elapsed_string($app['created_at']) ?></span>
+                                <span class="time-ago" data-ts="<?= htmlspecialchars($app['created_at']) ?>"><?= time_elapsed_string($app['created_at']) ?></span>
                             </td>
                             <td>
                                 <?php if (applicationResumeExistsOnDisk($app['resume_path'] ?? null)): ?>

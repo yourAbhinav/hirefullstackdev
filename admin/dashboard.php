@@ -209,7 +209,7 @@ $appStatusBreakdown = $conn->query("SELECT status, COUNT(*) as count FROM applic
                                 <span class="status-pill status-<?= htmlspecialchars($app['status']) ?>">
                                     <?= applicationStatusLabel($app['status']) ?>
                                 </span>
-                                <span class="activity-row-time"><?= time_elapsed_string($app['created_at']) ?></span>
+                                <span class="activity-row-time time-ago" data-ts="<?= htmlspecialchars($app['created_at']) ?>"><?= time_elapsed_string($app['created_at']) ?></span>
                                 <?= renderResumeStatusBadge($app['resume_path'] ?? null, true) ?>
                             </div>
                         </a>
@@ -243,7 +243,7 @@ $appStatusBreakdown = $conn->query("SELECT status, COUNT(*) as count FROM applic
                                 </div>
                             </div>
                             <div class="activity-row-side">
-                                <span class="activity-row-time">Joined <?= time_elapsed_string($user['created_at']) ?></span>
+                                <span class="activity-row-time">Joined <span class="time-ago" data-ts="<?= htmlspecialchars($user['created_at']) ?>"><?= time_elapsed_string($user['created_at']) ?></span></span>
                             </div>
                         </a>
                     <?php endforeach; ?>
@@ -279,7 +279,7 @@ $appStatusBreakdown = $conn->query("SELECT status, COUNT(*) as count FROM applic
                                         <?= ucfirst($job['status']) ?>
                                     </span>
                                     <span class="activity-time">
-                                        <?= time_elapsed_string($job['created_at']) ?>
+                                        <span class="time-ago" data-ts="<?= htmlspecialchars($job['created_at']) ?>"><?= time_elapsed_string($job['created_at']) ?></span>
                                     </span>
                                 </div>
                             </div>

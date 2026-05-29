@@ -34,8 +34,10 @@ $statusClasses = [
 	'approved' => 'application-status-approved',
 	'interview' => 'application-status-interview',
 	'reviewed' => 'application-status-reviewed',
+	'reviewing' => 'application-status-reviewed',
 	'shortlisted' => 'application-status-shortlisted',
 	'rejected' => 'application-status-rejected',
+	'hired' => 'application-status-approved',
 ];
 ?>
 

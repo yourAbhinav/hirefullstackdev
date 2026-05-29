@@ -735,8 +735,13 @@ a.stat-card:hover {
     background: #fff;
     border-radius: var(--admin-radius-lg);
     box-shadow: var(--admin-shadow);
-    overflow: hidden;
+        /* keep overflow hidden for most cards; table container will be made visible below */
+        overflow: hidden;
 }
+
+    /* Allow action dropdowns inside the table to overflow the card so menus aren't clipped */
+    .table-container {
+        overflow: visible;
 
 .card-header {
     padding: 18px 22px;

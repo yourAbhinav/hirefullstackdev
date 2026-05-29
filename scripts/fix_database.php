@@ -128,6 +128,14 @@ foreach ($applicationsColumns as $colName => $colDef) {
 }
 
 try {
+	$conn->query("UPDATE applications SET status = 'reviewed' WHERE status = 'reviewing'");
+	$conn->query("UPDATE applications SET status = 'approved' WHERE status = 'hired'");
+	echo "  ✓ Normalized legacy application statuses\n";
+} catch (Throwable $e) {
+	echo "  ✗ Failed to normalize legacy application statuses: " . $e->getMessage() . "\n";
+}
+
+try {
 	$conn->query("ALTER TABLE applications MODIFY status ENUM('pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlisted') NOT NULL DEFAULT 'pending'");
 	echo "  ✓ Updated applications.status enum\n";
 } catch (Throwable $e) {

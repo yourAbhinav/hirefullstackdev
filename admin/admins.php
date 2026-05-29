@@ -252,7 +252,7 @@ $recentAdminActivity = $conn
                             </div>
                         </div>
                         <div class="activity-row-side">
-                            <span class="activity-row-time"><?= time_elapsed_string($evt['created_at']) ?></span>
+                            <span class="activity-row-time time-ago" data-ts="<?= htmlspecialchars($evt['created_at']) ?>"><?= time_elapsed_string($evt['created_at']) ?></span>
                         </div>
                     </div>
                 <?php endforeach; ?>

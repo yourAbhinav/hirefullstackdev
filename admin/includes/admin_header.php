@@ -159,7 +159,7 @@ $notifications = getAdminNotifications($conn, $admin['id'], 5);
                                                 <span class="notification-item-type <?= $notification['type'] ?>">
                                                     <?= $notification['type'] ?>
                                                 </span>
-                                                <span class="notification-item-time">
+                                                <span class="notification-item-time time-ago" data-ts="<?= htmlspecialchars($notification['created_at']) ?>">
                                                     <?= time_elapsed_string($notification['created_at']) ?>
                                                 </span>
                                             </div>
