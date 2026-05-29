@@ -197,6 +197,12 @@ async function removeSavedJob(jobId) {
 }
 
 function observeElements() {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const narrowViewport = window.matchMedia('(max-width: 900px)').matches;
+    if (reducedMotion || narrowViewport) {
+        return;
+    }
+
     if (!('IntersectionObserver' in window)) {
         return;
     }
@@ -221,12 +227,23 @@ function setupStickyNavbar() {
         return;
     }
 
+    let ticking = false;
     const toggleNavbarState = () => {
         navbar.classList.toggle('is-scrolled', window.scrollY > 24);
+        ticking = false;
+    };
+
+    const onScroll = () => {
+        if (ticking) {
+            return;
+        }
+
+        ticking = true;
+        window.requestAnimationFrame(toggleNavbarState);
     };
 
     toggleNavbarState();
-    window.addEventListener('scroll', debounce(toggleNavbarState, 20), { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
 }
 
 function setupMobileMenu() {
@@ -268,6 +285,11 @@ function setupSearchDebounce() {
 
 function setupFormLoadingStates() {
     document.querySelectorAll('form').forEach((form) => {
+        if (form.dataset.loadingBound === 'true') {
+            return;
+        }
+
+        form.dataset.loadingBound = 'true';
         form.addEventListener('submit', (event) => {
             if (form.dataset.async === 'true') {
                 event.preventDefault();
@@ -304,6 +326,12 @@ function setupFormValidation() {
 }
 
 function setupCounterAnimations() {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const narrowViewport = window.matchMedia('(max-width: 900px)').matches;
+    if (reducedMotion || narrowViewport) {
+        return;
+    }
+
     if (!('IntersectionObserver' in window)) {
         return;
     }

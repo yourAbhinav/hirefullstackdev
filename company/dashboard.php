@@ -110,7 +110,7 @@ include '../includes/navbar.php';
         </article>
     </div>
 
-    <div class="profile-panels" style="margin-top: 2rem;">
+    <div class="profile-panels panel-top-spacing">
         <section class="panel">
             <div class="panel-header">
                 <div>

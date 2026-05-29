@@ -75,7 +75,7 @@ include '../includes/navbar.php';
                 <label for="loginPassword">Password</label>
                 <input type="password" id="loginPassword" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
             </div>
-            <label class="form-group" style="display:flex; align-items:center; gap:.5rem; flex-direction:row;">
+            <label class="form-group auth-remember-row">
                 <input type="checkbox" id="rememberMe" name="remember_me" value="1">
                 <span>Remember me on this device</span>
             </label>
@@ -184,7 +184,7 @@ async function signInWithGoogle() {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'notice notice-error notice-login-error';
             errorDiv.textContent = errorMessage;
-            errorDiv.style.marginBottom = '1rem';
+            errorDiv.classList.add('notice-login-spacing');
             
             const formContainer = document.querySelector('.auth-card-header');
             if (formContainer) {

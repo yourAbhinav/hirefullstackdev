@@ -1,4 +1,9 @@
 <?php
+// Performance optimization: Enable output buffering for faster perceived load time
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 require_once 'config/db.php';
 
 $page_title = "DevHire - Hire Top Full Stack Developers";
@@ -13,13 +18,25 @@ $canSaveJobs = isDeveloper();
 $applySuccess = getFlash('success');
 $applyError = getFlash('error');
 
+// Performance optimization: Cache featured jobs for 5 minutes to reduce database load
 $featuredJobs = [];
-$featuredStmt = $conn->prepare("SELECT j.id, j.title, j.description, j.salary_min, j.salary_max, j.experience_level, j.job_type, j.work_mode, j.location, j.tech_stack, COALESCE(u.company_name, u.fullName, 'Company') AS company_name FROM jobs j LEFT JOIN users u ON u.id = j.company_id WHERE j.status = ? ORDER BY j.featured DESC, j.created_at DESC LIMIT 4");
-$featuredStatus = 'active';
-$featuredStmt->bind_param('s', $featuredStatus);
-$featuredStmt->execute();
-$featuredJobs = $featuredStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$featuredStmt->close();
+$cacheKey = 'featured_jobs_cache';
+$cacheTime = 300; // 5 minutes
+
+if (isset($_SESSION[$cacheKey]) && isset($_SESSION[$cacheKey . '_time']) && (time() - $_SESSION[$cacheKey . '_time']) < $cacheTime) {
+    $featuredJobs = $_SESSION[$cacheKey];
+} else {
+    $featuredStmt = $conn->prepare("SELECT j.id, j.title, j.description, j.salary_min, j.salary_max, j.experience_level, j.job_type, j.work_mode, j.location, j.tech_stack, COALESCE(u.company_name, u.fullName, 'Company') AS company_name FROM jobs j LEFT JOIN users u ON u.id = j.company_id WHERE j.status = ? ORDER BY j.featured DESC, j.created_at DESC LIMIT 4");
+    $featuredStatus = 'active';
+    $featuredStmt->bind_param('s', $featuredStatus);
+    $featuredStmt->execute();
+    $featuredJobs = $featuredStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $featuredStmt->close();
+    
+    // Cache the results
+    $_SESSION[$cacheKey] = $featuredJobs;
+    $_SESSION[$cacheKey . '_time'] = time();
+}
 
 include 'includes/header.php';
 include 'includes/navbar.php';
@@ -72,10 +89,10 @@ include 'includes/navbar.php';
                         <i class="fab fa-node-js"></i>
                     </div>
                 </div>
-                <div style="text-align: center; position: relative; z-index: 10;">
-                    <i class="fas fa-code" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
+                <div class="hero-card-copy">
+                    <i class="fas fa-code hero-card-icon"></i>
                     <h3>Premium Talent</h3>
-                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">Handpicked developers ready to build</p>
+                    <p class="hero-card-subtitle">Handpicked developers ready to build</p>
                 </div>
             </div>
         </div>
@@ -87,14 +104,14 @@ include 'includes/navbar.php';
         <p class="quick-apply-subtitle">Apply in under 2 minutes and get hired faster.</p>
 
         <?php if (!empty($applySuccess)): ?>
-            <div class="notice notice-success" style="max-width: 900px; margin: 0 auto 1.5rem;">
+            <div class="notice notice-success notice-compact">
                 <i class="fas fa-check-circle"></i>
                 <p><?= escape($applySuccess) ?></p>
             </div>
         <?php endif; ?>
 
         <?php if (!empty($applyError)): ?>
-            <div class="notice notice-error" style="max-width: 900px; margin: 0 auto 1.5rem;">
+            <div class="notice notice-error notice-compact">
                 <i class="fas fa-exclamation-circle"></i>
                 <p><?= escape($applyError) ?></p>
             </div>
@@ -168,20 +185,20 @@ include 'includes/navbar.php';
             </button>
         </form>
         <?php else: ?>
-            <div class="panel" style="max-width: 900px; margin: 0 auto; text-align: center;">
+            <div class="panel quick-apply-lock-card">
                 <span class="eyebrow">Developer Access Required</span>
-                <h3 style="margin-top: 0.75rem;">Sign in to submit an application</h3>
-                <p style="color: var(--text-secondary); line-height: 1.7; margin-top: 0.75rem;">
+                <h3 class="quick-apply-lock-title">Sign in to submit an application</h3>
+                <p class="quick-apply-lock-copy">
                     Guest users cannot submit applications from the homepage. Developers should sign in to keep every application linked to a valid account.
                 </p>
                 <?php if (isLoggedIn() && !isDeveloper()): ?>
-                    <p style="margin-top: 1rem; color: var(--text-secondary);">Your current role is <?= escape(ucfirst($currentRole ?: 'user')) ?>, so application submission is disabled for this account.</p>
-                    <div style="display:flex; gap: 1rem; justify-content:center; flex-wrap: wrap; margin-top: 1.5rem;">
+                    <p class="quick-apply-lock-note">Your current role is <?= escape(ucfirst($currentRole ?: 'user')) ?>, so application submission is disabled for this account.</p>
+                    <div class="quick-apply-lock-actions">
                         <a href="<?= appUrl(roleDashboardPath()) ?>" class="btn-primary">Go to Dashboard</a>
                         <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-secondary">Browse Jobs</a>
                     </div>
                 <?php else: ?>
-                    <div style="display:flex; gap: 1rem; justify-content:center; flex-wrap: wrap; margin-top: 1.5rem;">
+                    <div class="quick-apply-lock-actions">
                         <a href="<?= appUrl('pages/login.php') ?>" class="btn-primary">Login</a>
                         <a href="<?= appUrl('pages/register.php') ?>" class="btn-secondary">Register</a>
                     </div>
@@ -242,7 +259,7 @@ include 'includes/navbar.php';
             <?php endif; ?>
         </div>
 
-        <div style="text-align: center; margin-top: 3rem;">
+        <div class="section-cta">
             <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-primary">
                 <i class="fas fa-arrow-right"></i> View All Jobs
             </a>
@@ -535,10 +552,15 @@ include 'includes/navbar.php';
                 </div>
             </div>
 
-            <a href="<?= appUrl('pages/apply.php') ?>" class="btn-primary" style="display: inline-block; margin-top: 2rem;">
+            <a href="<?= appUrl('pages/apply.php') ?>" class="btn-primary final-cta-button">
                 <i class="fas fa-rocket"></i> Start Your Application
             </a>
         </div>
     </section>
 
-<?php include 'includes/footer.php'; ?>
+<?php 
+// Performance optimization: Flush output buffer to send content to browser faster
+if (ob_get_level() > 0) {
+    ob_end_flush();
+}
+include 'includes/footer.php'; ?>

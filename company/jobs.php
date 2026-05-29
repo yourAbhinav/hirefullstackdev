@@ -112,7 +112,7 @@ include '../includes/navbar.php';
 		<article class="stat-card"><span>Role</span><strong>Company</strong></article>
 	</div>
 
-	<form class="dashboard-filters" method="GET" style="margin-top: 2rem;">
+	<form class="dashboard-filters panel-top-spacing" method="GET">
 		<div class="form-group">
 			<label for="status">Filter by Status</label>
 			<select id="status" name="status">
@@ -128,7 +128,7 @@ include '../includes/navbar.php';
 		</div>
 	</form>
 
-	<section class="panel" style="margin-top: 2rem;">
+	<section class="panel panel-top-spacing">
 		<div class="panel-header">
 			<div>
 				<span class="eyebrow">Managed Jobs</span>
@@ -149,14 +149,14 @@ include '../includes/navbar.php';
 							<span class="status-badge status-<?= htmlspecialchars($job['status'] ?? 'active', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($job['status'] ?? 'active'), ENT_QUOTES, 'UTF-8') ?></span>
 							<span><?= number_format((int) ($job['applications_count'] ?? 0)) ?> applicants</span>
 						</div>
-						<div style="display:flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem;">
+						<div class="row-actions row-actions-spaced">
 							<a href="<?= appUrl('company/create-job.php?id=' . (int) $job['id']) ?>" class="btn-secondary btn-inline">Edit</a>
 							<a href="<?= appUrl('company/applicants.php?job_id=' . (int) $job['id']) ?>" class="btn-secondary btn-inline">Applicants</a>
-							<form method="POST" style="display:inline;" onsubmit="return confirm('Delete this job?');">
+							<form method="POST" class="inline-form" onsubmit="return confirm('Delete this job?');">
 								<?= csrfField() ?>
 								<input type="hidden" name="action" value="delete_job">
 								<input type="hidden" name="job_id" value="<?= (int) $job['id'] ?>">
-								<button type="submit" class="btn-secondary btn-inline" style="border-color: var(--danger); color: var(--danger);">Delete</button>
+								<button type="submit" class="btn-secondary btn-inline btn-inline-danger">Delete</button>
 							</form>
 						</div>
 					</article>

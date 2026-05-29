@@ -81,7 +81,7 @@ include '../includes/navbar.php';
     </div>
 </section>
 
-<section class="featured-jobs" style="padding: 4rem 2rem;">
+<section class="featured-jobs apply-featured-section">
     <div class="apply-layout-single">
         <?php if (!empty($successMessage)): ?>
             <div class="notice notice-success">
@@ -104,7 +104,7 @@ include '../includes/navbar.php';
         <?php endif; ?>
 
         <?php if ($selectedJob !== null): ?>
-            <div class="notice notice-info" style="margin-bottom: 1.5rem;">
+            <div class="notice notice-info notice-spaced">
                 <i class="fas fa-briefcase"></i>
                 <div>
                     <strong>Applying for a specific role</strong>

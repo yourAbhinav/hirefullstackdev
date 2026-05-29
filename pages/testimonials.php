@@ -10,8 +10,8 @@ include '../includes/navbar.php';
 ?>
 
     <!-- Page Header -->
-    <section style="padding: 4rem 2rem; text-align: center; background: rgba(30, 41, 59, 0.3);">
-        <div style="max-width: 1400px; margin: 0 auto;">
+    <section class="legal-hero">
+        <div class="legal-hero-inner">
             <h1>Success Stories</h1>
             <p class="quick-apply-subtitle">Hear from developers and companies who found success with DevHire</p>
         </div>
@@ -29,7 +29,7 @@ include '../includes/navbar.php';
                 <div class="testimonial-card">
                     <div class="testimonial-stars">
                         <?php for ($j = 0; $j < 5; $j++): ?>
-                            <i class="fas fa-star" style="<?php echo $j < 4 ? 'color: #fbbf24;' : ''; ?>"></i>
+                            <i class="fas fa-star <?= $j < 4 ? 'testimonial-star-active' : '' ?>"></i>
                         <?php endfor; ?>
                     </div>
                     <p class="testimonial-quote">
@@ -53,7 +53,7 @@ include '../includes/navbar.php';
     </section>
 
     <!-- Company Testimonials -->
-    <section style="padding: 4rem 2rem; max-width: 1400px; margin: 0 auto;">
+    <section class="testimonials-company-section">
         <div class="section-title">
             <h2>Company Reviews</h2>
             <p>What hiring managers say about DevHire</p>
@@ -62,11 +62,11 @@ include '../includes/navbar.php';
         <div class="testimonials-grid">
             <div class="testimonial-card">
                 <div class="testimonial-stars">
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
                 </div>
                 <p class="testimonial-quote">
                     "DevHire has been a game-changer for our hiring process. We found top-tier talent in record time and the candidates were pre-vetted."
@@ -82,11 +82,11 @@ include '../includes/navbar.php';
 
             <div class="testimonial-card">
                 <div class="testimonial-stars">
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star-half-alt" style="color: #fbbf24;"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star-half-alt testimonial-star-active"></i>
                 </div>
                 <p class="testimonial-quote">
                     "We reduced our hiring cycle from 3 months to just 4 weeks. The quality of candidates is exceptional and the platform is very user-friendly."
@@ -102,11 +102,11 @@ include '../includes/navbar.php';
 
             <div class="testimonial-card">
                 <div class="testimonial-stars">
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
-                    <i class="fas fa-star" style="color: #fbbf24;"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
+                    <i class="fas fa-star testimonial-star-active"></i>
                 </div>
                 <p class="testimonial-quote">
                     "Outstanding platform! The customer support is responsive, the candidates are talented, and the ROI is incredible."

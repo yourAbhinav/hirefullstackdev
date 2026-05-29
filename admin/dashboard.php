@@ -1,5 +1,10 @@
 <?php
 
+// Performance optimization: Enable output buffering for faster perceived load time
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 require_once '../config/db.php';
 requireAdmin();
 
@@ -212,27 +217,28 @@ if ($currentQuery['view'] > 0) {
     $detailStmt->close();
 }
 
-$countStmt = $conn->prepare('SELECT COUNT(*) AS total FROM applications');
-$countStmt->execute();
-$totalApplications = (int) ($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
-$countStmt->close();
+// Performance: fetch dashboard application counts in one query instead of 4 separate roundtrips.
+// Performance: Cache dashboard stats for 2 minutes to reduce database load
+$statsCacheKey = 'dashboard_stats_cache';
+$statsCacheTime = 120; // 2 minutes
 
-$statusStmt = $conn->prepare('SELECT COUNT(*) AS total FROM applications WHERE status = ?');
-$status = 'pending';
-$statusStmt->bind_param('s', $status);
-$statusStmt->execute();
-$pendingApplications = (int) ($statusStmt->get_result()->fetch_assoc()['total'] ?? 0);
+if (isset($_SESSION[$statsCacheKey]) && isset($_SESSION[$statsCacheKey . '_time']) && (time() - $_SESSION[$statsCacheKey . '_time']) < $statsCacheTime) {
+    $stats = $_SESSION[$statsCacheKey];
+} else {
+    $statsStmt = $conn->prepare("SELECT COUNT(*) AS total, SUM(status = 'pending') AS pending_total, SUM(status = 'reviewing') AS reviewing_total, SUM(status = 'shortlisted') AS shortlisted_total FROM applications");
+	$statsStmt->execute();
+	$stats = $statsStmt->get_result()->fetch_assoc() ?: [];
+	$statsStmt->close();
+	
+	// Cache the results
+	$_SESSION[$statsCacheKey] = $stats;
+	$_SESSION[$statsCacheKey . '_time'] = time();
+}
 
-$status = 'reviewing';
-$statusStmt->bind_param('s', $status);
-$statusStmt->execute();
-$reviewingApplications = (int) ($statusStmt->get_result()->fetch_assoc()['total'] ?? 0);
-
-$status = 'shortlisted';
-$statusStmt->bind_param('s', $status);
-$statusStmt->execute();
-$shortlistedApplications = (int) ($statusStmt->get_result()->fetch_assoc()['total'] ?? 0);
-$statusStmt->close();
+$totalApplications = (int) ($stats['total'] ?? 0);
+$pendingApplications = (int) ($stats['pending_total'] ?? 0);
+$reviewingApplications = (int) ($stats['reviewing_total'] ?? 0);
+$shortlistedApplications = (int) ($stats['shortlisted_total'] ?? 0);
 
 $totalSavedJobs = 0;
 if (dashboardTableExists($conn, 'saved_jobs')) {
@@ -331,7 +337,7 @@ include '../includes/navbar.php';
         </article>
     </div>
 
-    <section class="panel" style="margin-top: 2rem;">
+    <section class="panel panel-top-spacing">
         <div class="panel-header">
             <div>
                 <span class="eyebrow">Support</span>
@@ -519,4 +525,9 @@ include '../includes/navbar.php';
     </section>
 </section>
 
-<?php include '../includes/footer.php'; ?>
+<?php 
+// Performance optimization: Flush output buffer to send content to browser faster
+if (ob_get_level() > 0) {
+    ob_end_flush();
+}
+include '../includes/footer.php'; ?>

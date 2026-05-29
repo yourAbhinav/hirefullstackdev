@@ -68,7 +68,7 @@ include '../includes/navbar.php';
 		<article class="stat-card"><span>Status</span><strong>Live</strong></article>
 	</div>
 
-	<form class="dashboard-filters" method="GET" style="margin-top: 2rem;">
+	<form class="dashboard-filters panel-top-spacing" method="GET">
 		<div class="form-group">
 			<label for="job_id">Filter by Job</label>
 			<select id="job_id" name="job_id">
@@ -84,7 +84,7 @@ include '../includes/navbar.php';
 		</div>
 	</form>
 
-	<section class="panel" style="margin-top: 2rem;">
+	<section class="panel panel-top-spacing">
 		<div class="panel-header">
 			<div>
 				<span class="eyebrow">Applications</span>
@@ -104,7 +104,7 @@ include '../includes/navbar.php';
 							<span class="status-badge status-<?= htmlspecialchars($application['status'] ?? 'pending', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($application['status'] ?? 'pending'), ENT_QUOTES, 'UTF-8') ?></span>
 							<span><?= htmlspecialchars(date('M j, Y', strtotime((string) $application['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
 						</div>
-						<div class="profile-item-meta" style="margin-top: .75rem;">
+						<div class="profile-item-meta profile-item-meta-offset">
 							<span><?= htmlspecialchars($application['phone'] ?: 'No phone', ENT_QUOTES, 'UTF-8') ?></span>
 							<span><?= htmlspecialchars($application['experience'] ?: 'Experience not set', ENT_QUOTES, 'UTF-8') ?></span>
 						</div>

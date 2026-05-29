@@ -78,6 +78,55 @@ function fetchRemoteContents(string $url): string|false
     return is_string($response) ? $response : false;
 }
 
+function firebaseCertCachePath(): string
+{
+    // Keep cache in logs directory so it persists across requests and is writable in common shared hosting setups.
+    return __DIR__ . '/../logs/firebase_certs_cache.json';
+}
+
+function getFirebasePublicCerts(): array|false
+{
+    $cacheFile = firebaseCertCachePath();
+    $cacheTtlSeconds = 3600; // 1 hour cache to avoid network dependency on every login.
+
+    if (is_file($cacheFile)) {
+        $age = time() - (int) @filemtime($cacheFile);
+        if ($age >= 0 && $age < $cacheTtlSeconds) {
+            $cached = @file_get_contents($cacheFile);
+            if (is_string($cached) && $cached !== '') {
+                $decoded = json_decode($cached, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    return $decoded;
+                }
+            }
+        }
+    }
+
+    $certResponse = fetchRemoteContents('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+    if ($certResponse === false) {
+        // If network is down, try using stale cache (better UX than hard-failing immediately).
+        if (is_file($cacheFile)) {
+            $stale = @file_get_contents($cacheFile);
+            if (is_string($stale) && $stale !== '') {
+                $decoded = json_decode($stale, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    return $decoded;
+                }
+            }
+        }
+        return false;
+    }
+
+    $certs = json_decode($certResponse, true);
+    if (!is_array($certs) || empty($certs)) {
+        return false;
+    }
+
+    // Best-effort cache write.
+    @file_put_contents($cacheFile, json_encode($certs, JSON_UNESCAPED_SLASHES), LOCK_EX);
+    return $certs;
+}
+
 function verifyFirebaseIdToken(string $idToken): array|false
 {
     $projectId = getenv('FIREBASE_PROJECT_ID') ?: 'abhhire-e8807';
@@ -124,12 +173,7 @@ function verifyFirebaseIdToken(string $idToken): array|false
         return false;
     }
 
-    $certResponse = fetchRemoteContents('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
-    if ($certResponse === false) {
-        return false;
-    }
-
-    $certs = json_decode($certResponse, true);
+    $certs = getFirebasePublicCerts();
     if (!is_array($certs) || empty($certs[$header['kid']])) {
         return false;
     }

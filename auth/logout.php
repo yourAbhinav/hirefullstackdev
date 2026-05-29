@@ -19,11 +19,11 @@ if (isLoggedIn()) {
 	include '../includes/header.php';
 ?>
 <section class="page-hero">
-	<div class="page-hero-inner" style="text-align:center; max-width: 720px; margin: 0 auto;">
+	<div class="page-hero-inner logout-hero-inner">
 		<span class="eyebrow">Secure Session</span>
 		<h1>Confirm logout</h1>
 		<p class="quick-apply-subtitle">Use the button below to end this session and revoke the current remember-me token.</p>
-		<div style="margin-top: 1.5rem; display:flex; justify-content:center; gap: 1rem; flex-wrap: wrap;">
+		<div class="logout-actions">
 			<?= renderLogoutForm('Logout Now', 'btn-primary') ?>
 			<a href="<?= appUrl(roleDashboardPath()) ?>" class="btn-secondary">Back to dashboard</a>
 		</div>

@@ -125,7 +125,7 @@ include '../includes/navbar.php';
 	</div>
 </section>
 
-<section class="featured-jobs" style="padding: 4rem 2rem;">
+<section class="featured-jobs company-create-job-section">
 	<div class="apply-layout-single">
 		<?php if (!empty($successMessage = getFlash('success'))): ?>
 			<div class="notice notice-success"><i class="fas fa-check-circle"></i><div><strong>Success</strong><p><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></p></div></div>
@@ -183,8 +183,8 @@ include '../includes/navbar.php';
 						<?php endforeach; ?>
 					</select>
 				</div>
-				<div class="form-group" style="display:flex; align-items:end;">
-					<label style="display:flex; align-items:center; gap:.5rem; margin:0;">
+				<div class="form-group featured-toggle-group">
+					<label class="featured-toggle-label">
 						<input type="checkbox" name="featured" value="1" <?= $formValues['featured'] === '1' ? 'checked' : '' ?>> Featured listing
 					</label>
 				</div>

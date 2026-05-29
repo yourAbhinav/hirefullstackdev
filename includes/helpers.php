@@ -161,6 +161,19 @@ function currentUserId()
     return $_SESSION['user_id'] ?? null;
 }
 
+function normalizeRoleName(?string $role): string
+{
+    $normalized = strtolower(trim((string) $role));
+
+    // Backwards-compatible aliases (older DB values / legacy code).
+    // Treat "user" accounts as developers for routing + permission checks.
+    if (in_array($normalized, ['user', 'candidate', 'applicant'], true)) {
+        return 'developer';
+    }
+
+    return $normalized;
+}
+
 function currentAdminId()
 {
     startSecureSession();
@@ -172,7 +185,7 @@ function currentUserRole(): string
 {
     startSecureSession();
 
-    $role = strtolower((string) ($_SESSION['user_role'] ?? $_SESSION['role'] ?? ''));
+    $role = normalizeRoleName($_SESSION['user_role'] ?? $_SESSION['role'] ?? '');
 
     if ($role !== '') {
         return $role;
@@ -180,7 +193,7 @@ function currentUserRole(): string
 
     $adminRole = currentAdminRole();
     if ($adminRole !== '') {
-        return $adminRole;
+        return normalizeRoleName($adminRole);
     }
 
     return '';
@@ -224,7 +237,7 @@ function roleLabel(?string $role = null): string
 
 function roleDashboardPath(?string $role = null): string
 {
-    $normalizedRole = strtolower(trim((string) ($role ?? currentUserRole())));
+    $normalizedRole = normalizeRoleName($role ?? currentUserRole());
 
     if (isAdmin()) {
         return 'admin/dashboard.php';
@@ -503,7 +516,7 @@ if (!function_exists('completeSessionLogin')) {
         $userId = (int) ($user['id'] ?? 0);
         $fullName = (string) ($user['fullName'] ?? ($user['name'] ?? 'Account'));
         $email = (string) ($user['email'] ?? '');
-        $role = strtolower((string) ($user['role'] ?? 'developer'));
+        $role = normalizeRoleName($user['role'] ?? 'developer');
 
         if ($isAdmin) {
             $_SESSION['admin_id'] = $userId;
@@ -550,7 +563,7 @@ function renderLogoutForm(string $label = 'Logout', string $buttonClass = 'btn-l
     $action = htmlspecialchars(appUrl('auth/logout.php'), ENT_QUOTES, 'UTF-8');
     $buttonClass = htmlspecialchars($buttonClass, ENT_QUOTES, 'UTF-8');
 
-    return '<form method="post" action="' . $action . '" class="logout-form" style="display:inline;">'
+    return '<form method="post" action="' . $action . '" class="logout-form logout-form-inline">'
         . csrfField()
         . '<button type="submit" class="' . $buttonClass . '">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</button>'
         . '</form>';

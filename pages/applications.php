@@ -29,12 +29,12 @@ $applicationStmt->execute();
 $applications = $applicationStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $applicationStmt->close();
 
-$statusColors = [
-	'pending' => '#FF9800',
-	'reviewing' => '#2196F3',
-	'shortlisted' => '#4CAF50',
-	'rejected' => '#F44336',
-	'hired' => '#8BC34A'
+$statusClasses = [
+	'pending' => 'application-status-pending',
+	'reviewing' => 'application-status-reviewing',
+	'shortlisted' => 'application-status-shortlisted',
+	'rejected' => 'application-status-rejected',
+	'hired' => 'application-status-hired'
 ];
 ?>
 
@@ -57,7 +57,7 @@ $statusColors = [
 								<h3><?= htmlspecialchars($app['job_title'] ?? $app['job_position'] ?? 'Job', ENT_QUOTES, 'UTF-8') ?></h3>
 								<p class="company-name"><?= htmlspecialchars($app['company_name'] ?? 'Company', ENT_QUOTES, 'UTF-8') ?></p>
 							</div>
-							<div class="application-status" style="background-color: <?= htmlspecialchars($statusColors[$app['status']] ?? '#999', ENT_QUOTES, 'UTF-8') ?>;">
+							<div class="application-status <?= htmlspecialchars($statusClasses[$app['status']] ?? 'application-status-default', ENT_QUOTES, 'UTF-8') ?>">
 								<?= htmlspecialchars(ucfirst($app['status'] ?? 'unknown'), ENT_QUOTES, 'UTF-8') ?>
 							</div>
 						</div>
@@ -92,76 +92,6 @@ $statusColors = [
 		<?php endif; ?>
 	</div>
 </section>
-
-<style>
-.applications-list {
-	display: grid;
-	gap: 1.5rem;
-	margin-top: 2rem;
-}
-
-.application-card {
-	background: white;
-	border: 1px solid #eee;
-	border-radius: 8px;
-	padding: 1.5rem;
-	transition: box-shadow 0.2s ease;
-}
-
-.application-card:hover {
-	box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.application-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: start;
-	margin-bottom: 1rem;
-	gap: 1rem;
-}
-
-.application-info h3 {
-	margin: 0 0 0.5rem 0;
-	font-size: 1.1rem;
-	color: #333;
-}
-
-.company-name {
-	margin: 0;
-	font-size: 0.9rem;
-	color: #666;
-}
-
-.application-status {
-	padding: 0.4rem 0.8rem;
-	border-radius: 20px;
-	color: white;
-	font-size: 0.85rem;
-	font-weight: 600;
-	white-space: nowrap;
-}
-
-.application-details {
-	display: grid;
-	gap: 0.75rem;
-	font-size: 0.95rem;
-}
-
-.detail-row {
-	display: flex;
-	gap: 1rem;
-}
-
-.detail-row .label {
-	color: #999;
-	min-width: 120px;
-	font-weight: 500;
-}
-
-.detail-row .value {
-	color: #333;
-}
-</style>
 
 <?php include '../includes/footer.php'; ?>
 

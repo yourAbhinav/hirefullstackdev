@@ -10,8 +10,8 @@ include '../includes/navbar.php';
 ?>
 
     <!-- Page Header -->
-    <section style="padding: 4rem 2rem; text-align: center; background: rgba(30, 41, 59, 0.3);">
-        <div style="max-width: 1400px; margin: 0 auto;">
+    <section class="legal-hero">
+        <div class="legal-hero-inner">
             <h1>Simple, Transparent Pricing</h1>
             <p class="quick-apply-subtitle">Choose the perfect plan for your needs</p>
         </div>
@@ -19,108 +19,108 @@ include '../includes/navbar.php';
 
     <!-- Pricing Plans -->
     <section class="featured-jobs">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 1200px; margin: 0 auto;">
+        <div class="pricing-grid">
             
             <!-- Starter Plan -->
-            <div class="feature-card" style="display: flex; flex-direction: column;">
-                <h3 style="margin-bottom: 0.5rem;">Starter</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Perfect for job seekers</p>
+            <div class="feature-card pricing-card">
+                <h3 class="pricing-card-title">Starter</h3>
+                <p class="pricing-card-subtitle">Perfect for job seekers</p>
                 
-                <div style="margin: 2rem 0;">
-                    <p style="font-size: 2.5rem; font-weight: 900; color: var(--primary); margin-bottom: 0.5rem;">Free</p>
-                    <p style="color: var(--text-tertiary);">Forever</p>
+                <div class="pricing-price-wrap">
+                    <p class="pricing-price">Free</p>
+                    <p class="pricing-period">Forever</p>
                 </div>
 
-                <ul style="list-style: none; margin: 2rem 0; flex-grow: 1;">
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                <ul class="pricing-feature-list">
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Browse all jobs
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Apply to positions
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Save up to 5 jobs
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-tertiary);">
-                        <i class="fas fa-times" style="color: var(--text-tertiary);"></i>
+                    <li class="pricing-feature-item pricing-feature-item-muted">
+                        <i class="fas fa-times pricing-feature-icon pricing-feature-icon-muted"></i>
                         Priority support
                     </li>
                 </ul>
 
-                <a href="<?= appUrl('pages/register.php') ?>" class="btn-secondary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
+                <a href="<?= appUrl('pages/register.php') ?>" class="btn-secondary pricing-action-btn">
                     Get Started
                 </a>
             </div>
 
             <!-- Professional Plan -->
-            <div class="feature-card" style="display: flex; flex-direction: column; border: 2px solid var(--primary);">
-                <div style="background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 0.3rem; width: fit-content; font-size: 0.8rem; font-weight: 700; margin-bottom: 1rem;">RECOMMENDED</div>
+            <div class="feature-card pricing-card pricing-card-featured">
+                <div class="pricing-badge">RECOMMENDED</div>
                 
-                <h3 style="margin-bottom: 0.5rem;">Professional</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">For active job seekers</p>
+                <h3 class="pricing-card-title">Professional</h3>
+                <p class="pricing-card-subtitle">For active job seekers</p>
                 
-                <div style="margin: 2rem 0;">
-                    <p style="font-size: 2.5rem; font-weight: 900; color: var(--primary); margin-bottom: 0.5rem;">$9<span style="font-size: 1.2rem;">/mo</span></p>
-                    <p style="color: var(--text-tertiary);">Billed monthly</p>
+                <div class="pricing-price-wrap">
+                    <p class="pricing-price">$9<span class="pricing-price-suffix">/mo</span></p>
+                    <p class="pricing-period">Billed monthly</p>
                 </div>
 
-                <ul style="list-style: none; margin: 2rem 0; flex-grow: 1;">
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                <ul class="pricing-feature-list">
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         All Starter benefits
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Save unlimited jobs
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Priority support
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Job alerts
                     </li>
                 </ul>
 
-                <a href="<?= appUrl('pages/register.php') ?>" class="btn-primary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
+                <a href="<?= appUrl('pages/register.php') ?>" class="btn-primary pricing-action-btn">
                     Start Free Trial
                 </a>
             </div>
 
             <!-- Enterprise Plan -->
-            <div class="feature-card" style="display: flex; flex-direction: column;">
-                <h3 style="margin-bottom: 0.5rem;">Enterprise</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">For companies & teams</p>
+            <div class="feature-card pricing-card">
+                <h3 class="pricing-card-title">Enterprise</h3>
+                <p class="pricing-card-subtitle">For companies & teams</p>
                 
-                <div style="margin: 2rem 0;">
-                    <p style="font-size: 2.5rem; font-weight: 900; color: var(--primary); margin-bottom: 0.5rem;">Custom</p>
-                    <p style="color: var(--text-tertiary);">Contact sales</p>
+                <div class="pricing-price-wrap">
+                    <p class="pricing-price">Custom</p>
+                    <p class="pricing-period">Contact sales</p>
                 </div>
 
-                <ul style="list-style: none; margin: 2rem 0; flex-grow: 1;">
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                <ul class="pricing-feature-list">
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Unlimited listings
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Dedicated account manager
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Premium support
                     </li>
-                    <li style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--primary);"></i>
+                    <li class="pricing-feature-item">
+                        <i class="fas fa-check pricing-feature-icon"></i>
                         Custom integrations
                     </li>
                 </ul>
 
-                <a href="<?= appUrl('pages/contact.php') ?>" class="btn-secondary" style="width: 100%; text-align: center; padding: 0.8rem; text-decoration: none; display: block;">
+                <a href="<?= appUrl('pages/contact.php') ?>" class="btn-secondary pricing-action-btn">
                     Contact Sales
                 </a>
             </div>

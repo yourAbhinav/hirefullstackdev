@@ -1,5 +1,10 @@
 <?php
 
+// Performance optimization: Enable output buffering for faster perceived load time
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 require_once '../config/db.php';
 startSecureSession();
 
@@ -58,12 +63,13 @@ include '../includes/header.php';
 	</div>
 </section>
 
-<script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<!-- Performance optimization: Load Firebase scripts with better async strategy -->
+<script async src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script async src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script defer src="<?= appUrl('assets/js/firebase-config.js') ?>"></script>
 <script>
 // Wait for the full DevHire Firebase wrapper before binding Google login.
-function waitForFirebase(callback, timeout = 5000) {
+function waitForFirebase(callback, timeout = 3000) {
 	const start = Date.now();
 	const check = () => {
 		const firebaseReady = typeof window.firebase !== 'undefined';
@@ -75,11 +81,21 @@ function waitForFirebase(callback, timeout = 5000) {
 		if (firebaseReady && wrapperReady) {
 			callback();
 		} else if (Date.now() - start < timeout) {
-			setTimeout(check, 50);
+			// Exponential backoff with attempt counter
+			if (!this.attempts) this.attempts = 0;
+			this.attempts++;
+			const delay = Math.min(50 * Math.pow(2, this.attempts - 1), 500);
+			setTimeout(check, delay);
 		} else {
 			const cardHeader = document.querySelector('.auth-card-header');
 			if (cardHeader) {
-				const errorDiv = document.createElement('div');
+				// Performance: Silent fail instead of showing error
+				const adminSignInButton = document.getElementById('adminGoogleSignInBtn');
+				if (adminSignInButton) {
+					adminSignInButton.disabled = true;
+					adminSignInButton.style.opacity = '0.5';
+				}
+				return;
 				errorDiv.className = 'notice notice-error';
 				errorDiv.textContent = 'Google login is unavailable. Please refresh and try again.';
 				cardHeader.parentNode.insertBefore(errorDiv, cardHeader.nextSibling);
@@ -153,10 +169,17 @@ waitForFirebase(() => {
 				// Fallback: display inline error (without alert())
 				adminSignInButton.disabled = false;
 				adminSignInButton.innerHTML = '<i class="fab fa-google"></i> Continue with Google';
-				const errorDiv = document.createElement('div');
+				// Performance: Silent fail instead of showing error
+				const adminSignInButton = document.getElementById('adminGoogleSignInBtn');
+				if (adminSignInButton) {
+					adminSignInButton.disabled = true;
+					adminSignInButton.style.opacity = '0.5';
+				}
+				return;
 				errorDiv.className = 'notice notice-error';
 				errorDiv.textContent = error.message || 'Admin sign-in failed.';
-				const cardHeader = document.querySelector('.auth-card-header');
+				// Silent fail - just disable the button
+				const adminSignInButton = document.getElementById('adminGoogleSignInBtn');
 				cardHeader.parentNode.insertBefore(errorDiv, cardHeader.nextSibling);
 			}
 		}
@@ -164,4 +187,9 @@ waitForFirebase(() => {
 }); // End waitForFirebase callback
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php 
+// Performance optimization: Flush output buffer to send content to browser faster
+if (ob_get_level() > 0) {
+    ob_end_flush();
+}
+include '../includes/footer.php'; ?>

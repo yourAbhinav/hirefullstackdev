@@ -20,9 +20,12 @@ $params = ['active'];
 $types = 's';
 
 if ($searchTerm !== '') {
-    $whereParts[] = '(j.title LIKE ? OR j.description LIKE ? OR j.tech_stack LIKE ? OR COALESCE(u.company_name, u.fullName, \'\') LIKE ?)';
+    // Performance: avoid LIKE against LONGTEXT descriptions (forces full scans).
+    // Use FULLTEXT index (title, description) for description searching and keep LIKE
+    // for the remaining smaller columns to preserve existing search behavior.
+    $whereParts[] = '(MATCH(j.title, j.description) AGAINST (? IN NATURAL LANGUAGE MODE) OR j.title LIKE ? OR j.tech_stack LIKE ? OR COALESCE(u.company_name, u.fullName, \'\') LIKE ?)';
     $like = '%' . $searchTerm . '%';
-    array_push($params, $like, $like, $like, $like);
+    array_push($params, $searchTerm, $like, $like, $like);
     $types .= 'ssss';
 }
 
@@ -83,16 +86,16 @@ include '../includes/header.php';
 include '../includes/navbar.php';
 ?>
 
-    <section style="padding: 4rem 2rem; text-align: center; background: rgba(30, 41, 59, 0.3);">
-        <div style="max-width: 1400px; margin: 0 auto;">
+    <section class="jobs-hero">
+        <div class="jobs-hero-inner">
             <h1>Job Opportunities</h1>
             <p class="quick-apply-subtitle">Find your next amazing opportunity at top companies</p>
         </div>
     </section>
 
     <section class="featured-jobs">
-        <form method="GET" action="<?= appUrl('pages/jobs.php') ?>" style="background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 1rem; padding: 2rem; margin-bottom: 3rem;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+        <form method="GET" action="<?= appUrl('pages/jobs.php') ?>" class="jobs-filter-panel">
+            <div class="jobs-filter-grid">
                 <div class="form-group">
                     <label for="jobSearch">Search Position</label>
                     <input type="text" name="q" id="jobSearch" placeholder="e.g. Frontend Developer" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8') ?>">
@@ -128,9 +131,9 @@ include '../includes/navbar.php';
                     </select>
                 </div>
             </div>
-            <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap;">
-                <button type="submit" class="btn-primary" style="padding: 0.8rem 1.2rem;">Filter Jobs</button>
-                <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-secondary" style="padding: 0.8rem 1.2rem; text-decoration: none;">Reset</a>
+            <div class="jobs-filter-actions">
+                <button type="submit" class="btn-primary jobs-filter-button">Filter Jobs</button>
+                <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-secondary jobs-filter-button jobs-filter-reset">Reset</a>
             </div>
         </form>
 
@@ -180,15 +183,15 @@ include '../includes/navbar.php';
         </div>
     </section>
 
-    <div style="text-align: center; padding: 3rem 2rem;">
+    <div class="jobs-pagination-wrap">
         <?php if ($totalPages > 1): ?>
-            <div style="display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
+            <div class="jobs-pagination-actions">
                 <?php if ($page > 1): ?>
-                    <a class="btn-secondary" style="padding: 0.6rem 1rem; text-decoration: none;" href="<?= appUrl('pages/jobs.php?' . http_build_query(array_merge($_GET, ['page' => $page - 1]))) ?>">Previous</a>
+                    <a class="btn-secondary jobs-pagination-btn jobs-filter-reset" href="<?= appUrl('pages/jobs.php?' . http_build_query(array_merge($_GET, ['page' => $page - 1]))) ?>">Previous</a>
                 <?php endif; ?>
-                <span class="btn-primary" style="padding: 0.6rem 1rem;"><?= (int) $page ?> of <?= (int) $totalPages ?></span>
+                <span class="btn-primary jobs-pagination-btn"><?= (int) $page ?> of <?= (int) $totalPages ?></span>
                 <?php if ($page < $totalPages): ?>
-                    <a class="btn-secondary" style="padding: 0.6rem 1rem; text-decoration: none;" href="<?= appUrl('pages/jobs.php?' . http_build_query(array_merge($_GET, ['page' => $page + 1]))) ?>">Next</a>
+                    <a class="btn-secondary jobs-pagination-btn jobs-filter-reset" href="<?= appUrl('pages/jobs.php?' . http_build_query(array_merge($_GET, ['page' => $page + 1]))) ?>">Next</a>
                 <?php endif; ?>
             </div>
         <?php endif; ?>

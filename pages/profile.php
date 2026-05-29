@@ -152,9 +152,9 @@ include '../includes/navbar.php';
             </div>
 
             <?php if (!empty($profileBio)): ?>
-                <div style="margin-top: 1.5rem;">
+                <div class="profile-bio-block">
                     <span class="eyebrow">Bio</span>
-                    <p style="margin-top: 0.5rem; color: var(--text-secondary); line-height: 1.7;">
+                    <p class="profile-bio-copy">
                         <?= escape($profileBio) ?>
                     </p>
                 </div>

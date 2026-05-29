@@ -135,14 +135,28 @@ function getApplications(): void
     global $conn;
 
     if (isAdmin()) {
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $limit = (int) ($_GET['limit'] ?? 200);
+        $limit = max(1, min(200, $limit));
+        $offset = ($page - 1) * $limit;
+
         // Admin view: select explicit columns but avoid exposing sensitive fields like resume_path, phone, email, message, feedback
-        $stmt = $conn->prepare('SELECT id, full_name, job_position, job_id, user_id, status, rating, created_at, updated_at FROM applications ORDER BY created_at DESC');
+        $stmt = $conn->prepare('SELECT id, full_name, job_position, job_id, user_id, status, rating, created_at, updated_at FROM applications ORDER BY created_at DESC LIMIT ? OFFSET ?');
+        $stmt->bind_param('ii', $limit, $offset);
         $stmt->execute();
         $result = $stmt->get_result();
         $applications = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
         $stmt->close();
 
-        jsonResponse(['success' => true, 'applications' => $applications]);
+        jsonResponse([
+            'success' => true,
+            'applications' => $applications,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'count' => count($applications),
+            ],
+        ]);
     }
 
     // Only developer accounts should access personal application history.

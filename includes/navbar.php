@@ -155,21 +155,23 @@ Contact
 		</div>
 	</a>
 <?php else: ?>
-	<a
-	href="<?= appUrl('pages/login.php') ?>"
-	class="btn-login">
+	<div class="nav-auth-buttons">
+		<a
+		href="<?= appUrl('pages/login.php') ?>"
+		class="btn-login">
 
-	Login
+		Login
 
-	</a>
+		</a>
 
-	<a
-	href="<?= appUrl('pages/register.php') ?>"
-	class="btn-apply">
+		<a
+		href="<?= appUrl('pages/register.php') ?>"
+		class="btn-apply">
 
-	Register
+		Register
 
-	</a>
+		</a>
+	</div>
 <?php endif; ?>
 
 </div>

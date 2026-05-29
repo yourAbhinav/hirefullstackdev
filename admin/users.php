@@ -56,7 +56,7 @@ include '../includes/navbar.php';
 		</div>
 
 		<?php if (!$isSuperAdmin): ?>
-			<div class="notice notice-info" style="margin-bottom: 1.5rem;">Only super_admin accounts can create or promote admin accounts.</div>
+			<div class="notice notice-info panel-bottom-spacing">Only super_admin accounts can create or promote admin accounts.</div>
 		<?php endif; ?>
 
 		<div class="profile-list">
