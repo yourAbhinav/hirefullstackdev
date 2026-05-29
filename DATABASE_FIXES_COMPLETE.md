@@ -125,11 +125,23 @@ Enforced strict role separation:
 
 ---
 
+## Base URL / Deployment Path
+
+If deploying in a subfolder (e.g., http://localhost{APP_BASE_URL}/), set the APP_BASE_URL environment variable:
+
+**Root domain deployment:** APP_BASE_URL = (empty or not set)
+**Subfolder deployment:** APP_BASE_URL = /your-folder-name
+
+Example for .env file or system environment:
+```
+APP_BASE_URL=/DevHire
+```
+
 ## Testing the Fixes
 
 ### Test 1: Admin Password Login
 ```
-1. Go to http://localhost/DevHire/admin/login.php
+1. Go to http://localhost{APP_BASE_URL}/admin/login.php
 2. Enter:
    Email: abhinavkumark70@gmail.com
    Password: (your admin password)
@@ -139,7 +151,7 @@ Enforced strict role separation:
 
 ### Test 2: Admin Google Login
 ```
-1. Go to http://localhost/DevHire/admin/login.php
+1. Go to http://localhost{APP_BASE_URL}/admin/login.php
 2. Click "Continue with Google"
 3. Sign in with Google account matching: abhinavkumark70@gmail.com
 4. Expected: Redirect to admin/dashboard.php
@@ -147,7 +159,7 @@ Enforced strict role separation:
 
 ### Test 3: Admin Dashboard Access
 ```
-1. After logging in, go to http://localhost/DevHire/admin/dashboard.php
+1. After logging in, go to http://localhost{APP_BASE_URL}/admin/dashboard.php
 2. Expected: Dashboard should load successfully
 3. Check: Nav bar should show "Admin Dashboard" link
 ```
@@ -191,7 +203,7 @@ Visit `/admin/login.php` and test with:
 ### 2. Create Regular User Account
 If you have regular users who need to register:
 ```
-1. Go to http://localhost/DevHire/pages/register.php
+1. Go to http://localhost{APP_BASE_URL}/pages/register.php
 2. Register as a Developer or Company
 3. This will create a record in the users table
 ```
@@ -261,7 +273,7 @@ After fixing, logins now correctly set:
 
 ### Admin session not created after login
 **Cause**: Using wrong login page (normal login instead of admin login)
-**Fix**: Use http://localhost/DevHire/admin/login.php (not pages/login.php)
+**Fix**: Use http://localhost{APP_BASE_URL}/admin/login.php (not pages/login.php)
 
 ### Error: "Cannot redeclare completeSessionLogin()"
 **Cause**: Old code still in use

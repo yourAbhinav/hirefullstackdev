@@ -465,6 +465,7 @@ function removeSavedJob(): void
 
 function sendMessage(): void
 {
+    requireLoginApi();
     requireDeveloperApi();
     requireApiCsrf();
     global $conn;

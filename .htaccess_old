@@ -1,6 +1,11 @@
+# LEGACY FILE - DO NOT USE
+# This is a backup of the old .htaccess configuration.
+# Use the current .htaccess file instead.
+# If deploying, ensure this file is not used as the active Apache configuration.
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /DevHire/
+    # RewriteBase /DevHire/  # Uncomment if deploying in subdirectory
     
     # Remove .php extension
     RewriteCond %{REQUEST_FILENAME} !-f

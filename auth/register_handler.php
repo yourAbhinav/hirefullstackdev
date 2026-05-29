@@ -15,14 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = (string) ($_POST['password'] ?? '');
     $confirmPassword = (string) ($_POST['confirmPassword'] ?? '');
     $accountType = strtolower(trim((string) ($_POST['accountType'] ?? '')));
+    $terms = (string) ($_POST['terms'] ?? '');
 
     // Validate
     $errors = [];
     if (empty($fullName)) $errors[] = 'Full name is required';
     if (empty($email) || !validateEmail($email)) $errors[] = 'Valid email is required';
-    if (empty($password) || strlen($password) < 6) $errors[] = 'Password must be at least 6 characters';
+    if (empty($password) || strlen($password) < 8) $errors[] = 'Password must be at least 8 characters';
     if ($password !== $confirmPassword) $errors[] = 'Passwords do not match';
     if (empty($accountType) || !in_array($accountType, ['developer', 'company'])) $errors[] = 'Valid account type is required';
+    if (empty($terms) || $terms !== 'on') $errors[] = 'You must accept the Terms of Service to create an account';
 
     if (!empty($errors)) {
         $_SESSION['errors'] = $errors;

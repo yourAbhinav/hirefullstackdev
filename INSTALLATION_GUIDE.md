@@ -37,7 +37,7 @@ CREATE DATABASE IF NOT EXISTS devhire CHARACTER SET utf8mb4 COLLATE utf8mb4_unic
 USE devhire;
 
 # Then import the SQL file:
-SOURCE /path/to/DevHire/database.sql;
+SOURCE /path/to/{PROJECT_DIR}/database.sql;
 ```
 
 **Method C: Manual Setup in phpMyAdmin**
@@ -48,7 +48,7 @@ SOURCE /path/to/DevHire/database.sql;
 
 #### Step 3: Configure Database Connection
 
-1. Open `DevHire/config/db.php` in a text editor
+1. Open `{PROJECT_DIR}/config/db.php` in a text editor
 2. Update database credentials if needed:
 
 ```php
@@ -77,9 +77,21 @@ mkdir logs/
 #### Step 5: Set File Permissions (Linux/Mac)
 
 ```bash
-chmod 755 /path/to/DevHire/uploads/
-chmod 755 /path/to/DevHire/logs/
-chmod 755 /path/to/DevHire/uploads/resumes/
+chmod 755 /path/to/{PROJECT_DIR}/uploads/
+chmod 755 /path/to/{PROJECT_DIR}/logs/
+chmod 755 /path/to/{PROJECT_DIR}/uploads/resumes/
+```
+
+#### Step 5.5: Configure Base URL (Optional)
+
+If deploying in a subfolder (e.g., http://localhost{APP_BASE_URL}/), set the APP_BASE_URL environment variable:
+
+**Root domain deployment:** APP_BASE_URL = (empty or not set)
+**Subfolder deployment:** APP_BASE_URL = /your-folder-name
+
+Example for .env file or system environment:
+```
+APP_BASE_URL=/DevHire
 ```
 
 #### Step 6: Start Your Server
@@ -88,50 +100,50 @@ chmod 755 /path/to/DevHire/uploads/resumes/
 1. Open XAMPP Control Panel
 2. Click "Start" next to Apache
 3. Click "Start" next to MySQL
-4. Open browser: `http://localhost/DevHire/`
+4. Open browser: `http://localhost{APP_BASE_URL}/`
 
 **WAMP (Windows):**
 1. Click system tray icon → Start WampServer
 2. Wait for it to turn green
-3. Open browser: `http://localhost/DevHire/`
+3. Open browser: `http://localhost{APP_BASE_URL}/`
 
 **LAMP (Linux):**
 ```bash
 sudo systemctl start apache2
 sudo systemctl start mysql
-# Open browser: http://localhost/DevHire/
+# Open browser: http://localhost{APP_BASE_URL}/
 ```
 
 **MAMP (Mac):**
 1. Open Applications → MAMP
 2. Click "Start Servers"
-3. Open browser: `http://localhost:8888/DevHire/`
+3. Open browser: `http://localhost:8888{APP_BASE_URL}/`
 
 #### Step 7: Access the Application
 
 After server is running, visit:
-- **Homepage:** `http://localhost/DevHire/`
-- **Jobs:** `http://localhost/DevHire/pages/jobs.php`
-- **Apply:** `http://localhost/DevHire/pages/apply.php`
-- **Login:** `http://localhost/DevHire/pages/login.php`
-- **Admin:** `http://localhost/DevHire/admin/dashboard.php`
+- **Homepage:** `http://localhost{APP_BASE_URL}/`
+- **Jobs:** `http://localhost{APP_BASE_URL}/pages/jobs.php`
+- **Apply:** `http://localhost{APP_BASE_URL}/pages/apply.php`
+- **Login:** `http://localhost{APP_BASE_URL}/pages/login.php`
+- **Admin:** `http://localhost{APP_BASE_URL}/admin/dashboard.php`
 
 ## Testing the Installation
 
 ### Test Database Connection
-1. Go to `http://localhost/DevHire/`
+1. Go to `http://localhost{APP_BASE_URL}/`
 2. If you see the homepage design properly, database is connected
 3. Try clicking on "Apply Now" - should open the form
 
 ### Test Admin Panel
-1. Go to `http://localhost/DevHire/pages/login.php`
+1. Go to `http://localhost{APP_BASE_URL}/pages/login.php`
 2. Use credentials:
    - Email: `admin@devhire.com`
    - Password: `admin123`
 3. Should see admin dashboard with statistics
 
 ### Test Form Submission
-1. Go to `http://localhost/DevHire/pages/apply.php`
+1. Go to `http://localhost{APP_BASE_URL}/pages/apply.php`
 2. Fill in the form and submit
 3. Should see success message
 4. In admin panel, should see the application
@@ -144,13 +156,13 @@ After server is running, visit:
 - **Verify:** Open phpMyAdmin - if it works, database is fine
 
 ### "Page not found (404)"
-- **Solution:** Check .htaccess file exists in DevHire folder
+- **Solution:** Check .htaccess file exists in {PROJECT_DIR} folder
 - **For WAMP/XAMPP:** Make sure mod_rewrite is enabled
-- **Test:** Go directly to `http://localhost/DevHire/index.php`
+- **Test:** Go directly to `http://localhost{APP_BASE_URL}/index.php`
 
 ### "White screen or errors"
 - **Solution:** Check PHP error log
-- **File:** Check `logs/error.log` in DevHire folder
+- **File:** Check `logs/error.log` in {PROJECT_DIR} folder
 - **Browser:** Press F12, check Console tab for errors
 
 ### "Uploads not working"

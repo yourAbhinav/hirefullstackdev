@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../config/site.php';
+
 startSecureSession();
 $isAuthenticated = isLoggedIn();
 $isDeveloperUser = isDeveloper();
@@ -165,12 +167,12 @@ Contact Us
 
 <p>
 <i class="fas fa-phone"></i>
-+1 (234) 567-890
+<?= substr(CONTACT_PHONE, 0, 15) ?>
 </p>
 
 <p>
 <i class="fas fa-envelope"></i>
-info@devhire.com
+<?= CONTACT_SUPPORT_EMAIL ?>
 </p>
 
 <p>
@@ -238,6 +240,9 @@ window.DEVHIRE_CSRF_TOKEN = <?= json_encode(csrfToken(), JSON_UNESCAPED_SLASHES)
 <!-- JS -->
 
 <script src="<?= appUrl('assets/js/main.js') ?>"></script>
+
+<!-- Navbar JS - Premium Mobile Menu -->
+<script src="<?= appUrl('assets/js/navbar.js') ?>"></script>
 
 </body>
 </html>

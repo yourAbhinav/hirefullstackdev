@@ -1,5 +1,7 @@
 <?php
 require_once '../includes/helpers.php';
+require_once '../config/site.php';
+
 startSecureSession();
 
 $page_title = "Contact Us - DevHire";
@@ -35,7 +37,7 @@ include '../includes/navbar.php';
                     </div>
                     <div>
                         <h4 class="contact-info-heading">Address</h4>
-                        <p class="contact-info-copy">123 Tech Street<br>San Francisco, CA 94102<br>United States</p>
+                        <p class="contact-info-copy"><?= CONTACT_ADDRESS ?></p>
                     </div>
                 </div>
 
@@ -45,7 +47,7 @@ include '../includes/navbar.php';
                     </div>
                     <div>
                         <h4 class="contact-info-heading">Phone</h4>
-                        <p class="contact-info-copy">+1 (234) 567-8900<br>Mon - Fri, 9AM - 6PM PST</p>
+                        <p class="contact-info-copy"><?= CONTACT_PHONE ?><br>Mon - Fri, 9AM - 6PM PST</p>
                     </div>
                 </div>
 
@@ -55,7 +57,7 @@ include '../includes/navbar.php';
                     </div>
                     <div>
                         <h4 class="contact-info-heading">Email</h4>
-                        <p class="contact-info-copy">info@devhire.com<br>support@devhire.com</p>
+                        <p class="contact-info-copy">info@devhire.com<br><?= CONTACT_SUPPORT_EMAIL ?></p>
                     </div>
                 </div>
             </div>

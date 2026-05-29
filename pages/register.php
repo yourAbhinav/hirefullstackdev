@@ -52,12 +52,13 @@ unset($_SESSION['errors'], $_SESSION['error'], $_SESSION['success']);
 
                     <div class="form-group register-form-group">
                         <label for="regPassword">Password</label>
-                        <input type="password" id="regPassword" name="password" placeholder="••••••••" required>
+                        <input type="password" id="regPassword" name="password" placeholder="••••••••" required minlength="8">
+                        <small class="form-hint">Minimum 8 characters</small>
                     </div>
 
                     <div class="form-group register-form-group">
                         <label for="confirmPassword">Confirm Password</label>
-                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="••••••••" required>
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="••••••••" required minlength="8">
                     </div>
 
                     <div class="form-group register-form-group">

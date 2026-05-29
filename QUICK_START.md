@@ -24,7 +24,19 @@ define('DB_PASSWORD', 'your_password');
 
 ### Step 4: Open in Browser
 ```
-http://localhost/DevHire/
+http://localhost{APP_BASE_URL}/
+```
+
+## Base URL / Deployment Path
+
+If deploying in a subfolder (e.g., http://localhost{APP_BASE_URL}/), set the APP_BASE_URL environment variable:
+
+**Root domain deployment:** APP_BASE_URL = (empty or not set)
+**Subfolder deployment:** APP_BASE_URL = /your-folder-name
+
+Example for .env file or system environment:
+```
+APP_BASE_URL=/DevHire
 ```
 
 ## 🔐 Login Credentials

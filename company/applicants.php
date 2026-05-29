@@ -9,7 +9,11 @@ $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
 $companyId = currentCompanyId();
+$page = max(1, isset($_GET['page']) ? (int) $_GET['page'] : 1);
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
 $jobIdFilter = isset($_GET['job_id']) ? (int) $_GET['job_id'] : 0;
+
 $allowedJobsStmt = $conn->prepare('SELECT id, title FROM jobs WHERE company_id = ? ORDER BY created_at DESC');
 $allowedJobsStmt->bind_param('i', $companyId);
 $allowedJobsStmt->execute();
@@ -20,23 +24,52 @@ if ($jobIdFilter > 0) {
 	requireCompanyJobOwnership($conn, $jobIdFilter, $companyId);
 }
 
+// Build base query with job filter
+$sql = 'SELECT a.id, a.full_name, a.email, a.phone, a.experience, a.tech_stack, a.job_position, a.resume_path, a.status, a.feedback, a.created_at, j.id AS job_id, j.title AS job_title FROM applications a INNER JOIN jobs j ON j.id = a.job_id WHERE j.company_id = ?';
+$params = [$companyId];
+$types = 'i';
+
+if ($jobIdFilter > 0) {
+	$sql .= ' AND j.id = ?';
+	$params[] = $jobIdFilter;
+	$types .= 'i';
+}
+
+// Get total count for pagination
+$countSql = 'SELECT COUNT(*) AS total FROM applications a INNER JOIN jobs j ON j.id = a.job_id WHERE j.company_id = ?';
+$countParams = [$companyId];
+$countTypes = 'i';
+
+if ($jobIdFilter > 0) {
+	$countSql .= ' AND j.id = ?';
+	$countParams[] = $jobIdFilter;
+	$countTypes .= 'i';
+}
+
+$countStmt = $conn->prepare($countSql);
+$countStmt->bind_param($countTypes, ...$countParams);
+$countStmt->execute();
+$totalFiltered = (int) ($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
+$countStmt->close();
+
+$totalPages = max(1, (int) ceil($totalFiltered / $perPage));
+if ($page > $totalPages) {
+	$page = $totalPages;
+	$offset = ($page - 1) * $perPage;
+}
+
+// Get total applicants count (for stats)
 $statsStmt = $conn->prepare('SELECT COUNT(*) AS total FROM applications a INNER JOIN jobs j ON j.id = a.job_id WHERE j.company_id = ?');
 $statsStmt->bind_param('i', $companyId);
 $statsStmt->execute();
 $totalApplicants = (int) ($statsStmt->get_result()->fetch_assoc()['total'] ?? 0);
 $statsStmt->close();
 
-$sql = 'SELECT a.id, a.full_name, a.email, a.phone, a.experience, a.tech_stack, a.job_position, a.resume_path, a.status, a.feedback, a.created_at, j.id AS job_id, j.title AS job_title FROM applications a INNER JOIN jobs j ON j.id = a.job_id AND j.company_id = ?';
-$params = [$companyId];
-$types = 'i';
-
-if ($jobIdFilter > 0) {
-	$sql .= ' WHERE j.id = ?';
-	$params[] = $jobIdFilter;
-	$types .= 'i';
-}
-
-$sql .= ' ORDER BY a.created_at DESC';
+// Get paginated results
+$sql .= ' ORDER BY a.created_at DESC LIMIT ? OFFSET ?';
+$params[] = $perPage;
+$params[] = $offset;
+$types .= 'ii';
 
 $applicationsStmt = $conn->prepare($sql);
 $applicationsStmt->bind_param($types, ...$params);
@@ -63,9 +96,9 @@ include '../includes/navbar.php';
 
 	<div class="dashboard-grid stats-grid-4">
 		<article class="stat-card"><span>Total Applicants</span><strong><?= number_format($totalApplicants) ?></strong></article>
+		<article class="stat-card"><span>Filtered Applicants</span><strong><?= number_format($totalFiltered) ?></strong></article>
 		<article class="stat-card"><span>Selected Job</span><strong><?= $jobIdFilter > 0 ? number_format($jobIdFilter) : 'All' ?></strong></article>
 		<article class="stat-card"><span>Role</span><strong>Company</strong></article>
-		<article class="stat-card"><span>Status</span><strong>Live</strong></article>
 	</div>
 
 	<form class="dashboard-filters panel-top-spacing" method="GET">
@@ -90,6 +123,11 @@ include '../includes/navbar.php';
 				<span class="eyebrow">Applications</span>
 				<h2>Candidate list</h2>
 			</div>
+			<?php if ($totalPages > 1): ?>
+				<div class="pagination-info">
+					<span>Page <?= $page ?> of <?= $totalPages ?></span>
+				</div>
+			<?php endif; ?>
 		</div>
 
 		<?php if (!empty($applications)): ?>
@@ -117,6 +155,26 @@ include '../includes/navbar.php';
 					</article>
 				<?php endforeach; ?>
 			</div>
+
+			<?php if ($totalPages > 1): ?>
+				<div class="pagination">
+					<?php if ($page > 1): ?>
+						<a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>" class="btn-secondary btn-inline">Previous</a>
+					<?php endif; ?>
+					
+					<?php for ($i = 1; $i <= $totalPages; $i++): ?>
+						<?php if ($i === $page): ?>
+							<span class="pagination-current"><?= $i ?></span>
+						<?php else: ?>
+							<a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>" class="btn-secondary btn-inline"><?= $i ?></a>
+						<?php endif; ?>
+					<?php endfor; ?>
+					
+					<?php if ($page < $totalPages): ?>
+						<a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>" class="btn-secondary btn-inline">Next</a>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
 		<?php else: ?>
 			<div class="empty-state">No applicants found for this company.</div>
 		<?php endif; ?>

@@ -199,10 +199,22 @@ DevHire/
 ### Quick Start (3 steps)
 1. Import `database.sql` into MySQL
 2. Update `config/db.php` with credentials
-3. Open `http://localhost/DevHire/`
+3. Open `http://localhost{APP_BASE_URL}/`
 
 ### Full Installation
 See **INSTALLATION_GUIDE.md** for detailed steps
+
+## Base URL / Deployment Path
+
+If deploying in a subfolder (e.g., http://localhost{APP_BASE_URL}/), set the APP_BASE_URL environment variable:
+
+**Root domain deployment:** APP_BASE_URL = (empty or not set)
+**Subfolder deployment:** APP_BASE_URL = /your-folder-name
+
+Example for .env file or system environment:
+```
+APP_BASE_URL=/DevHire
+```
 
 ## 🔍 File Dependencies
 

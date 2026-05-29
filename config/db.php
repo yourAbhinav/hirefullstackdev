@@ -2,6 +2,11 @@
 
 require_once __DIR__ . '/../includes/helpers.php';
 
+// DevHire requires PHP 8.0 or higher
+if (version_compare(PHP_VERSION, '8.0.0', '<')) {
+    throw new RuntimeException('DevHire requires PHP 8.0 or higher. Current version: ' . PHP_VERSION);
+}
+
 // Do not start browser sessions when running from CLI tools (e.g. migration scripts).
 if (php_sapi_name() !== 'cli') {
 	startSecureSession();
@@ -18,7 +23,7 @@ $port = getenv('DB_PORT') !== false && ctype_digit((string) getenv('DB_PORT')) ?
 
 // Production safety: fail if critical env vars are missing
 if ($isProduction) {
-	$requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME'];
+	$requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME', 'SITE_URL', 'FIREBASE_PROJECT_ID'];
 	$missing = array_filter($requiredEnvVars, fn($var) => !getenv($var) || getenv($var) === '');
 	if (!empty($missing)) {
 		throw new RuntimeException('Production deployment missing required environment variables: ' . implode(', ', $missing));

@@ -305,7 +305,7 @@ if (in_array($mode, ['firebase', 'google', 'admin'], true) || !empty($payload['i
         loginResponse(['success' => false, 'message' => 'Unable to verify your Google sign-in.'], $isJsonRequest, 401);
     }
 
-    $firebaseUid = normalizeEmail((string) ($claims['sub'] ?? ''));
+    $firebaseUid = trim((string) ($claims['sub'] ?? ''));
     $email = normalizeEmail((string) ($claims['email'] ?? ''));
     $name = trim((string) ($claims['name'] ?? ''));
     $photo = trim((string) ($claims['picture'] ?? ''));

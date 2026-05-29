@@ -68,7 +68,7 @@ C:\xampp\htdocs\  (Windows)
 
 **Option B: Using Command Line**
 ```bash
-mysql -u root -p < /path/to/DevHire/database.sql
+mysql -u root -p < /path/to/{PROJECT_DIR}/database.sql
 ```
 
 **Option C: Manually**
@@ -97,16 +97,28 @@ chmod 755 uploads/
 chmod 755 logs/
 ```
 
+### 4.5. **Configure Base URL (Optional)**
+
+If deploying in a subfolder (e.g., http://localhost{APP_BASE_URL}/), set the APP_BASE_URL environment variable:
+
+**Root domain deployment:** APP_BASE_URL = (empty or not set)
+**Subfolder deployment:** APP_BASE_URL = /your-folder-name
+
+Example for .env file or system environment:
+```
+APP_BASE_URL=/DevHire
+```
+
 ### 5. **Start Your Server**
 
 **XAMPP:**
 1. Open XAMPP Control Panel
 2. Start Apache and MySQL
-3. Open browser: http://localhost/DevHire/
+3. Open browser: http://localhost{APP_BASE_URL}/
 
 **WAMP:**
 1. Start WAMP Server
-2. Open browser: http://localhost/DevHire/
+2. Open browser: http://localhost{APP_BASE_URL}/
 
 **LAMP (Linux):**
 ```bash
@@ -114,13 +126,13 @@ sudo systemctl start apache2
 sudo systemctl start mysql
 ```
 
-Then visit: http://localhost/DevHire/
+Then visit: http://localhost{APP_BASE_URL}/
 
 ### 6. **Access the Application**
 
-- **Homepage:** http://localhost/DevHire/
-- **Login:** http://localhost/DevHire/pages/login.php
-- **Admin Dashboard:** http://localhost/DevHire/admin/dashboard.php
+- **Homepage:** http://localhost{APP_BASE_URL}/
+- **Login:** http://localhost{APP_BASE_URL}/pages/login.php
+- **Admin Dashboard:** http://localhost{APP_BASE_URL}/admin/dashboard.php
 
 ## 👤 Default Credentials
 

@@ -1,5 +1,20 @@
 <?php
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../config/site.php';
+
+
+// SEO Configuration
+$currentPageTitle = isset($page_title) ? $page_title : SEO_DEFAULT_TITLE;
+$currentDescription = isset($page_description) ? $page_description : SEO_DEFAULT_DESCRIPTION;
+
+// Detect scheme for canonical URL
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443) ? 'https' : 'http';
+$currentUrl = isset($page_url) ? $page_url : $scheme . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+
+// Only set OG image if the file exists or a custom image is provided
+$defaultOgImage = SITE_URL . '/assets/images/devhire-og.jpg';
+$ogImagePath = __DIR__ . '/../assets/images/devhire-og.jpg';
+$currentImage = isset($page_image) ? $page_image : (file_exists($ogImagePath) ? $defaultOgImage : '');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -14,19 +29,38 @@ content="width=device-width, initial-scale=1.0">
 
 <meta
 name="description"
-content="DevHire - Hire Top Full Stack Developers">
+content="<?= htmlspecialchars($currentDescription, ENT_QUOTES, 'UTF-8') ?>">
 
 <meta
 name="author"
-content="DevHire">
+content="<?= SITE_COMPANY_NAME ?>">
 
-<title>
-<?php
-echo isset($page_title)
-? $page_title
-: 'DevHire - Hire Top Full Stack Developers';
-?>
-</title>
+<title><?= htmlspecialchars($currentPageTitle, ENT_QUOTES, 'UTF-8') ?></title>
+
+<!-- Canonical URL -->
+<link rel="canonical" href="<?= htmlspecialchars($currentUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+<!-- OpenGraph Tags -->
+<meta property="og:title" content="<?= htmlspecialchars($currentPageTitle, ENT_QUOTES, 'UTF-8') ?>">
+<meta property="og:description" content="<?= htmlspecialchars($currentDescription, ENT_QUOTES, 'UTF-8') ?>">
+<meta property="og:type" content="website">
+<meta property="og:url" content="<?= htmlspecialchars($currentUrl, ENT_QUOTES, 'UTF-8') ?>">
+<?php if ($currentImage !== ''): ?>
+<meta property="og:image" content="<?= htmlspecialchars($currentImage, ENT_QUOTES, 'UTF-8') ?>">
+<?php endif; ?>
+<meta property="og:site_name" content="<?= SITE_COMPANY_NAME ?>">
+
+<!-- Twitter Cards -->
+<?php if ($currentImage !== ''): ?>
+<meta name="twitter:card" content="summary_large_image">
+<?php else: ?>
+<meta name="twitter:card" content="summary">
+<?php endif; ?>
+<meta name="twitter:title" content="<?= htmlspecialchars($currentPageTitle, ENT_QUOTES, 'UTF-8') ?>">
+<meta name="twitter:description" content="<?= htmlspecialchars($currentDescription, ENT_QUOTES, 'UTF-8') ?>">
+<?php if ($currentImage !== ''): ?>
+<meta name="twitter:image" content="<?= htmlspecialchars($currentImage, ENT_QUOTES, 'UTF-8') ?>">
+<?php endif; ?>
 
 <!-- Favicon -->
 
@@ -46,6 +80,18 @@ href="<?= htmlspecialchars(appUrl('assets/css/style.css?v=3'), ENT_QUOTES, 'UTF-
 <link
 rel="stylesheet"
 href="<?= htmlspecialchars(appUrl('assets/css/notifications.css?v=3'), ENT_QUOTES, 'UTF-8') ?>">
+
+<!-- NAVBAR CSS - Premium SaaS Design -->
+<link
+rel="stylesheet"
+href="<?= htmlspecialchars(appUrl('assets/css/navbar.css?v=1'), ENT_QUOTES, 'UTF-8') ?>">
+
+<?php if (basename($_SERVER['PHP_SELF']) === 'login.php' || basename($_SERVER['PHP_SELF']) === 'register.php' || strpos($_SERVER['PHP_SELF'], 'admin/login.php') !== false): ?>
+<!-- AUTH CSS - Premium SaaS Authentication -->
+<link
+rel="stylesheet"
+href="<?= htmlspecialchars(appUrl('assets/css/auth.css?v=1'), ENT_QUOTES, 'UTF-8') ?>">
+<?php endif; ?>
 
 <!-- Font Awesome (async load) -->
 <link

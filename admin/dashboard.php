@@ -1,533 +1,714 @@
 <?php
+$page_title = 'Dashboard Overview';
+require_once 'includes/admin_header.php';
 
-// Performance optimization: Enable output buffering for faster perceived load time
-if (ob_get_level() === 0) {
-    ob_start();
-}
+$stats = getDashboardStats($conn);
 
-require_once '../config/db.php';
-requireAdmin();
+// Get recent activity
+$recentApplications = $conn->query("SELECT id, full_name, job_position, status, created_at FROM applications ORDER BY created_at DESC LIMIT 5")->fetch_all(MYSQLI_ASSOC) ?: [];
+$recentUsers = $conn->query("SELECT id, fullName, email, role, created_at FROM users ORDER BY created_at DESC LIMIT 5")->fetch_all(MYSQLI_ASSOC) ?: [];
+$recentJobs = $conn->query("SELECT id, title, company_id, status, created_at FROM jobs ORDER BY created_at DESC LIMIT 5")->fetch_all(MYSQLI_ASSOC) ?: [];
 
-$page_title = 'Admin Dashboard - DevHire';
-$css_path = appUrl('assets/css/style.css');
-$js_path = appUrl('assets/js/main.js');
+// Get monthly stats for charts
+$monthlyUsers = $conn->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month")->fetch_all(MYSQLI_ASSOC) ?: [];
+$monthlyApplications = $conn->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count FROM applications WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month")->fetch_all(MYSQLI_ASSOC) ?: [];
 
-$nameColumn = 'a.full_name';
-$techColumn = 'a.tech_stack';
-$allowedStatuses = ['pending', 'reviewing', 'shortlisted', 'rejected', 'hired'];
-
-$dashboardNotice = $_SESSION['dashboard_notice'] ?? '';
-$dashboardError = $_SESSION['dashboard_error'] ?? '';
-unset($_SESSION['dashboard_notice'], $_SESSION['dashboard_error']);
-
-$currentQuery = [
-    'q' => trim((string) ($_GET['q'] ?? '')),
-    'status' => trim((string) ($_GET['status'] ?? '')),
-    'page' => max(1, (int) ($_GET['page'] ?? 1)),
-    'view' => (int) ($_GET['view'] ?? 0),
-];
-
-function dashboardRedirect(array $query = []): void
-{
-    $url = appUrl('admin/dashboard.php');
-    $filtered = array_filter($query, static function ($value) {
-        return $value !== '' && $value !== null;
-    });
-
-    if (!empty($filtered)) {
-        $url .= '?' . http_build_query($filtered);
-    }
-
-    header('Location: ' . $url);
-    exit;
-}
-
-function dashboardTableExists(mysqli $conn, string $tableName): bool
-{
-    $stmt = $conn->prepare('SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1');
-    if (!$stmt) {
-        return false;
-    }
-
-    $stmt->bind_param('s', $tableName);
-    $stmt->execute();
-    $exists = $stmt->get_result()->num_rows > 0;
-    $stmt->close();
-
-    return $exists;
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
-        $_SESSION['dashboard_error'] = 'Your session expired. Please reload and try again.';
-        dashboardRedirect($currentQuery);
-    }
-
-    $action = $_POST['action'] ?? '';
-    $applicationId = (int) ($_POST['application_id'] ?? 0);
-    $returnQuery = [
-        'q' => trim((string) ($_POST['return_q'] ?? '')),
-        'status' => trim((string) ($_POST['return_status'] ?? '')),
-        'page' => max(1, (int) ($_POST['return_page'] ?? 1)),
-        'view' => (int) ($_POST['return_view'] ?? 0),
-    ];
-
-    if ($action === 'update_application') {
-        $status = sanitize($_POST['status'] ?? 'pending');
-        $feedback = sanitize($_POST['feedback'] ?? '');
-
-        if ($applicationId <= 0) {
-            $_SESSION['dashboard_error'] = 'Invalid application selected.';
-            dashboardRedirect($returnQuery);
-        }
-
-        if (!in_array($status, $allowedStatuses, true)) {
-            $_SESSION['dashboard_error'] = 'Invalid application status.';
-            dashboardRedirect($returnQuery);
-        }
-
-        $stmt = $conn->prepare('UPDATE applications SET status = ?, feedback = ?, updated_at = NOW() WHERE id = ?');
-        $stmt->bind_param('ssi', $status, $feedback, $applicationId);
-        $stmt->execute();
-        $stmt->close();
-
-        $_SESSION['dashboard_notice'] = 'Application updated successfully.';
-        dashboardRedirect($returnQuery);
-    }
-
-    if ($action === 'delete_application') {
-        if ($applicationId <= 0) {
-            $_SESSION['dashboard_error'] = 'Invalid application selected.';
-            dashboardRedirect($returnQuery);
-        }
-
-        // First fetch job_id so we can decrement applications_count if needed
-        $jobId = null;
-        $jobFetch = $conn->prepare('SELECT job_id FROM applications WHERE id = ? LIMIT 1');
-        if ($jobFetch) {
-            $jobFetch->bind_param('i', $applicationId);
-            $jobFetch->execute();
-            $row = $jobFetch->get_result()->fetch_assoc();
-            $jobId = isset($row['job_id']) && $row['job_id'] !== null ? (int) $row['job_id'] : null;
-            $jobFetch->close();
-        }
-
-        $stmt = $conn->prepare('DELETE FROM applications WHERE id = ?');
-        $stmt->bind_param('i', $applicationId);
-        $stmt->execute();
-        $stmt->close();
-
-        // Decrement applications_count for the job, ensuring it doesn't go negative
-        if ($jobId !== null && $jobId > 0) {
-            $dec = $conn->prepare('UPDATE jobs SET applications_count = GREATEST(applications_count - 1, 0) WHERE id = ?');
-            if ($dec) {
-                $dec->bind_param('i', $jobId);
-                $dec->execute();
-                $dec->close();
-            }
-        }
-
-        $_SESSION['dashboard_notice'] = 'Application deleted successfully.';
-        dashboardRedirect($returnQuery);
-    }
-
-    $_SESSION['dashboard_error'] = 'Unsupported action.';
-    dashboardRedirect($returnQuery);
-}
-
-$search = $currentQuery['q'];
-$statusFilter = $currentQuery['status'];
-$page = $currentQuery['page'];
-$perPage = 10;
-$offset = ($page - 1) * $perPage;
-
-$whereParts = [];
-$params = [];
-$types = '';
-
-if ($statusFilter !== '' && in_array($statusFilter, $allowedStatuses, true)) {
-    $whereParts[] = 'a.status = ?';
-    $params[] = $statusFilter;
-    $types .= 's';
-}
-
-if ($search !== '') {
-    $whereParts[] = '(' . implode(' OR ', [
-        $nameColumn . ' LIKE ?',
-        'a.email LIKE ?',
-        'a.phone LIKE ?',
-        'a.job_position LIKE ?',
-        $techColumn . ' LIKE ?',
-        'COALESCE(au.name, u.fullName, \'\') LIKE ?',
-    ]) . ')';
-
-    $like = '%' . $search . '%';
-    for ($i = 0; $i < 6; $i++) {
-        $params[] = $like;
-        $types .= 's';
-    }
-}
-
-$whereSql = !empty($whereParts) ? 'WHERE ' . implode(' AND ', $whereParts) : '';
-
-$countSql = 'SELECT COUNT(*) AS total FROM applications a LEFT JOIN users u ON u.id = a.user_id ' . $whereSql;
-$countStmt = $conn->prepare($countSql);
-if (!empty($params)) {
-    $countStmt->bind_param($types, ...$params);
-}
-$countStmt->execute();
-$totalFiltered = (int) ($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
-$countStmt->close();
-
-$totalPages = max(1, (int) ceil($totalFiltered / $perPage));
-if ($page > $totalPages) {
-    $page = $totalPages;
-    $offset = ($page - 1) * $perPage;
-}
-
-$dataSql = 'SELECT a.id, a.full_name, a.email, a.phone, a.experience, a.tech_stack, a.job_position, a.portfolio_url, a.message, a.resume_path, a.job_id, a.user_id, a.status, a.feedback, a.rating, a.created_at, ' .
-    $nameColumn . ' AS applicant_name, ' .
-    $techColumn . ' AS tech_stack_value, ' .
-    'COALESCE(u.fullName, u.email, \'\') AS account_name, ' .
-    'COALESCE(u.email, a.email) AS account_email, ' .
-    'COALESCE(u.profile_image, \'\') AS account_photo ' .
-    'FROM applications a LEFT JOIN users u ON u.id = a.user_id ' .
-    $whereSql . ' ORDER BY a.created_at DESC LIMIT ? OFFSET ?';
-
-$dataStmt = $conn->prepare($dataSql);
-$dataParams = $params;
-$dataTypes = $types . 'ii';
-$dataParams[] = $perPage;
-$dataParams[] = $offset;
-if (!empty($dataParams)) {
-    $dataStmt->bind_param($dataTypes, ...$dataParams);
-}
-$dataStmt->execute();
-$applicationsResult = $dataStmt->get_result();
-$applications = $applicationsResult ? $applicationsResult->fetch_all(MYSQLI_ASSOC) : [];
-$dataStmt->close();
-
-$selectedApplication = null;
-if ($currentQuery['view'] > 0) {
-    $detailStmt = $conn->prepare('SELECT a.id, a.full_name, a.email, a.phone, a.experience, a.tech_stack, a.job_position, a.portfolio_url, a.message, a.resume_path, a.job_id, a.user_id, a.status, a.feedback, a.rating, a.created_at, ' . $nameColumn . ' AS applicant_name, ' . $techColumn . ' AS tech_stack_value, COALESCE(u.fullName, u.email, \'\') AS account_name, COALESCE(u.email, a.email) AS account_email, COALESCE(u.profile_image, \'\') AS account_photo FROM applications a LEFT JOIN users u ON u.id = a.user_id WHERE a.id = ? LIMIT 1');
-    $detailId = $currentQuery['view'];
-    $detailStmt->bind_param('i', $detailId);
-    $detailStmt->execute();
-    $selectedApplication = $detailStmt->get_result()->fetch_assoc();
-    $detailStmt->close();
-}
-
-// Performance: fetch dashboard application counts in one query instead of 4 separate roundtrips.
-// Performance: Cache dashboard stats for 2 minutes to reduce database load
-$statsCacheKey = 'dashboard_stats_cache';
-$statsCacheTime = 120; // 2 minutes
-
-if (isset($_SESSION[$statsCacheKey]) && isset($_SESSION[$statsCacheKey . '_time']) && (time() - $_SESSION[$statsCacheKey . '_time']) < $statsCacheTime) {
-    $stats = $_SESSION[$statsCacheKey];
-} else {
-    $statsStmt = $conn->prepare("SELECT COUNT(*) AS total, SUM(status = 'pending') AS pending_total, SUM(status = 'reviewing') AS reviewing_total, SUM(status = 'shortlisted') AS shortlisted_total FROM applications");
-	$statsStmt->execute();
-	$stats = $statsStmt->get_result()->fetch_assoc() ?: [];
-	$statsStmt->close();
-	
-	// Cache the results
-	$_SESSION[$statsCacheKey] = $stats;
-	$_SESSION[$statsCacheKey . '_time'] = time();
-}
-
-$totalApplications = (int) ($stats['total'] ?? 0);
-$pendingApplications = (int) ($stats['pending_total'] ?? 0);
-$reviewingApplications = (int) ($stats['reviewing_total'] ?? 0);
-$shortlistedApplications = (int) ($stats['shortlisted_total'] ?? 0);
-
-$totalSavedJobs = 0;
-if (dashboardTableExists($conn, 'saved_jobs')) {
-    $savedJobsStmt = $conn->prepare('SELECT COUNT(*) AS total FROM saved_jobs');
-    $savedJobsStmt->execute();
-    $totalSavedJobs = (int) ($savedJobsStmt->get_result()->fetch_assoc()['total'] ?? 0);
-    $savedJobsStmt->close();
-}
-
-$totalMessages = 0;
-if (dashboardTableExists($conn, 'messages')) {
-    $messagesStmt = $conn->prepare('SELECT COUNT(*) AS total FROM messages');
-    $messagesStmt->execute();
-    $totalMessages = (int) ($messagesStmt->get_result()->fetch_assoc()['total'] ?? 0);
-    $messagesStmt->close();
-}
-
-$totalContactMessages = 0;
-$recentContacts = [];
-if (dashboardTableExists($conn, 'contact_messages')) {
-    $contactStmt = $conn->prepare('SELECT COUNT(*) AS total FROM contact_messages');
-    $contactStmt->execute();
-    $totalContactMessages = (int) ($contactStmt->get_result()->fetch_assoc()['total'] ?? 0);
-    $contactStmt->close();
-
-    $recentContactsStmt = $conn->prepare('SELECT id, full_name, email, subject, message, status, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 5');
-    $recentContactsStmt->execute();
-    $recentContacts = $recentContactsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $recentContactsStmt->close();
-}
-
-include '../includes/header.php';
-include '../includes/navbar.php';
+// Get application status distribution
+$appStatusBreakdown = $conn->query("SELECT status, COUNT(*) as count FROM applications GROUP BY status")->fetch_all(MYSQLI_ASSOC) ?: [];
 ?>
 
-<section class="admin-shell">
-    <div class="admin-hero">
-        <div>
-            <span class="eyebrow">Admin Panel</span>
-            <h1>Dashboard</h1>
-            <p>Review applications, update hiring status, and keep the platform moving.</p>
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-icon">
+            <i class="fas fa-users"></i>
         </div>
-        <div class="admin-hero-actions">
-            <div class="admin-user-summary">
-                <div class="admin-user-avatar">
-                    <?= htmlspecialchars(strtoupper(substr(currentUserName(), 0, 1)), ENT_QUOTES, 'UTF-8') ?>
-                </div>
-                <div>
-                    <strong><?= htmlspecialchars(currentUserName(), ENT_QUOTES, 'UTF-8') ?></strong>
-                    <span><?= htmlspecialchars(currentUserEmail(), ENT_QUOTES, 'UTF-8') ?></span>
-                </div>
-            </div>
-            <?= renderLogoutForm('Logout', 'btn-secondary btn-inline') ?>
-        </div>
-    </div>
-
-    <?php if (!empty($dashboardNotice)): ?>
-        <div class="notice notice-success"><i class="fas fa-check-circle"></i><p><?= htmlspecialchars($dashboardNotice, ENT_QUOTES, 'UTF-8') ?></p></div>
-    <?php endif; ?>
-
-    <?php if (!empty($dashboardError)): ?>
-        <div class="notice notice-error"><i class="fas fa-exclamation-circle"></i><p><?= htmlspecialchars($dashboardError, ENT_QUOTES, 'UTF-8') ?></p></div>
-    <?php endif; ?>
-
-    <div class="dashboard-grid stats-grid-4">
-        <article class="stat-card">
-            <span>Total Applications</span>
-            <strong><?= number_format($totalApplications) ?></strong>
-        </article>
-        <article class="stat-card">
-            <span>Pending</span>
-            <strong><?= number_format($pendingApplications) ?></strong>
-        </article>
-        <article class="stat-card">
-            <span>Reviewing</span>
-            <strong><?= number_format($reviewingApplications) ?></strong>
-        </article>
-        <article class="stat-card">
-            <span>Saved Jobs</span>
-            <strong><?= number_format($totalSavedJobs) ?></strong>
-        </article>
-    </div>
-
-    <div class="dashboard-grid stats-grid-2 mt-3">
-        <article class="stat-card subtle">
-            <span>Shortlisted</span>
-            <strong><?= number_format($shortlistedApplications) ?></strong>
-        </article>
-        <article class="stat-card subtle">
-            <span>Messages</span>
-            <strong><?= number_format($totalMessages) ?></strong>
-        </article>
-        <article class="stat-card subtle">
-            <span>Contact Messages</span>
-            <strong><?= number_format($totalContactMessages) ?></strong>
-        </article>
-    </div>
-
-    <section class="panel panel-top-spacing">
-        <div class="panel-header">
-            <div>
-                <span class="eyebrow">Support</span>
-                <h2>Recent contact messages</h2>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($stats['total_users']) ?></div>
+            <div class="stat-label">Total Users</div>
+            <div class="stat-change positive">
+                <i class="fas fa-arrow-up"></i> <?= $stats['active_users'] ?> active
             </div>
         </div>
-        <?php if (!empty($recentContacts)): ?>
-            <div class="profile-list">
-                <?php foreach ($recentContacts as $contactMessage): ?>
-                    <article class="profile-item-card">
-                        <div>
-                            <strong><?= htmlspecialchars($contactMessage['subject'] ?? 'Contact message', ENT_QUOTES, 'UTF-8') ?></strong>
-                            <p><?= htmlspecialchars($contactMessage['full_name'] ?? 'Guest', ENT_QUOTES, 'UTF-8') ?> &middot; <?= htmlspecialchars($contactMessage['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+    </div>
+    
+    <div class="stat-card success">
+        <div class="stat-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($stats['total_applications']) ?></div>
+            <div class="stat-label">Total Applications</div>
+            <div class="stat-change">
+                <?= $stats['applications_pending'] ?? 0 ?> pending review
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card info">
+        <div class="stat-icon">
+            <i class="fas fa-briefcase"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($stats['total_jobs']) ?></div>
+            <div class="stat-label">Total Jobs</div>
+            <div class="stat-change positive">
+                <i class="fas fa-check-circle"></i> <?= $stats['active_jobs'] ?> active
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card warning">
+        <div class="stat-icon">
+            <i class="fas fa-file-pdf"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($stats['total_resumes']) ?></div>
+            <div class="stat-label">Resumes Uploaded</div>
+            <div class="stat-change">
+                This month
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-section">
+    <div class="chart-card">
+        <div class="card-header">
+            <h3>User Growth</h3>
+            <div class="card-actions">
+                <select class="time-filter">
+                    <option>Last 6 months</option>
+                    <option>Last year</option>
+                    <option>All time</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="userGrowthChart" height="300"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <div class="card-header">
+            <h3>Applications Overview</h3>
+            <div class="card-actions">
+                <select class="time-filter">
+                    <option>Last 6 months</option>
+                    <option>Last year</option>
+                    <option>All time</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="applicationsChart" height="300"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Application Status Distribution -->
+<div class="status-distribution">
+    <div class="chart-card">
+        <div class="card-header">
+            <h3>Application Status Distribution</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="statusChart" height="250"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <div class="card-header">
+            <h3>Hiring Funnel</h3>
+        </div>
+        <div class="card-body">
+            <div class="funnel-container">
+                <div class="funnel-step">
+                    <div class="funnel-label">Applications Received</div>
+                    <div class="funnel-bar" style="width: 100%">
+                        <span><?= $stats['total_applications'] ?></span>
+                    </div>
+                </div>
+                <div class="funnel-step">
+                    <div class="funnel-label">Under Review</div>
+                    <div class="funnel-bar" style="width: 75%">
+                        <span><?= (int)($stats['total_applications'] * 0.75) ?></span>
+                    </div>
+                </div>
+                <div class="funnel-step">
+                    <div class="funnel-label">Interviews</div>
+                    <div class="funnel-bar" style="width: 40%">
+                        <span><?= (int)($stats['total_applications'] * 0.40) ?></span>
+                    </div>
+                </div>
+                <div class="funnel-step">
+                    <div class="funnel-label">Approved</div>
+                    <div class="funnel-bar" style="width: 15%">
+                        <span><?= (int)($stats['total_applications'] * 0.15) ?></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="recent-activity-section">
+    <div class="activity-card">
+        <div class="card-header">
+            <h3>Recent Applications</h3>
+            <a href="<?= appUrl('admin/applications.php') ?>" class="view-all">View All</a>
+        </div>
+        <div class="card-body">
+            <?php if (empty($recentApplications)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-file-alt"></i>
+                    <p>No applications yet</p>
+                </div>
+            <?php else: ?>
+                <div class="activity-list">
+                    <?php foreach ($recentApplications as $app): ?>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">
+                                    <?= htmlspecialchars($app['full_name']) ?> applied for 
+                                    <strong><?= htmlspecialchars($app['job_position']) ?></strong>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-status <?= $app['status'] ?>">
+                                        <?= ucfirst($app['status']) ?>
+                                    </span>
+                                    <span class="activity-time">
+                                        <?= time_elapsed_string($app['created_at']) ?>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="profile-item-meta">
-                            <span><?= htmlspecialchars(ucfirst((string) ($contactMessage['status'] ?? 'new')), ENT_QUOTES, 'UTF-8') ?></span>
-                            <span><?= htmlspecialchars(date('M j, Y', strtotime((string) $contactMessage['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    
+    <div class="activity-card">
+        <div class="card-header">
+            <h3>Recent Users</h3>
+            <a href="<?= appUrl('admin/users.php') ?>" class="view-all">View All</a>
+        </div>
+        <div class="card-body">
+            <?php if (empty($recentUsers)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>No users yet</p>
+                </div>
+            <?php else: ?>
+                <div class="activity-list">
+                    <?php foreach ($recentUsers as $user): ?>
+                        <div class="activity-item">
+                            <div class="activity-icon user">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">
+                                    <?= htmlspecialchars($user['fullName']) ?>
+                                    <span class="activity-role"><?= ucfirst($user['role']) ?></span>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-email"><?= htmlspecialchars($user['email']) ?></span>
+                                    <span class="activity-time">
+                                        <?= time_elapsed_string($user['created_at']) ?>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <p class="profile-note"><?= htmlspecialchars(strlen((string) ($contactMessage['message'] ?? '')) > 160 ? substr((string) $contactMessage['message'], 0, 160) . '...' : (string) ($contactMessage['message'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-                    </article>
-                <?php endforeach; ?>
-            </div>
-        <?php else: ?>
-            <div class="empty-state">No contact messages yet.</div>
-        <?php endif; ?>
-    </section>
-
-    <form class="dashboard-filters" method="GET">
-        <div class="form-group">
-            <label for="q">Search</label>
-            <input type="search" id="q" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>" placeholder="Name, email, phone, position, tech stack">
-        </div>
-        <div class="form-group">
-            <label for="status">Status</label>
-            <select id="status" name="status">
-                <option value="">All statuses</option>
-                <?php foreach ($allowedStatuses as $statusOption): ?>
-                    <option value="<?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>" <?= $statusFilter === $statusOption ? 'selected' : '' ?>><?= ucfirst($statusOption) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="dashboard-filter-actions">
-            <button type="submit" class="btn-primary btn-inline">Filter</button>
-            <a href="<?= appUrl('admin/dashboard.php') ?>" class="btn-secondary btn-inline">Reset</a>
-        </div>
-    </form>
-
-    <?php if (!empty($selectedApplication)): ?>
-        <section class="panel details-panel">
-            <div class="panel-header">
-                <div>
-                    <span class="eyebrow">Selected application</span>
-                    <h2><?= htmlspecialchars($selectedApplication['applicant_name'] ?: $selectedApplication['account_name'] ?: $selectedApplication['email'], ENT_QUOTES, 'UTF-8') ?></h2>
+                    <?php endforeach; ?>
                 </div>
-                <a class="btn-secondary btn-inline" href="<?= appUrl('admin/dashboard.php') ?>">Close</a>
-            </div>
-            <div class="details-grid">
-                <div><span>Email</span><strong><?= htmlspecialchars($selectedApplication['email'], ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Phone</span><strong><?= htmlspecialchars($selectedApplication['phone'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Position</span><strong><?= htmlspecialchars($selectedApplication['job_position'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Tech Stack</span><strong><?= htmlspecialchars($selectedApplication['tech_stack_value'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Experience</span><strong><?= htmlspecialchars($selectedApplication['experience'] ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
-                <div><span>Status</span><strong class="status-badge status-<?= htmlspecialchars($selectedApplication['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($selectedApplication['status']), ENT_QUOTES, 'UTF-8') ?></strong></div>
-            </div>
-            <div class="details-copy">
-                <div>
-                    <span>Portfolio</span>
-                    <?php if (!empty($selectedApplication['portfolio_url'])): ?>
-                        <p><a href="<?= htmlspecialchars($selectedApplication['portfolio_url'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open portfolio</a></p>
-                    <?php else: ?>
-                        <p>Not provided</p>
-                    <?php endif; ?>
-                </div>
-                <div>
-                    <span>Message</span>
-                    <p><?= nl2br(htmlspecialchars($selectedApplication['message'] ?? '', ENT_QUOTES, 'UTF-8')) ?></p>
-                </div>
-                <div>
-                    <span>Feedback</span>
-                    <p><?= nl2br(htmlspecialchars($selectedApplication['feedback'] ?? '', ENT_QUOTES, 'UTF-8')) ?></p>
-                </div>
-            </div>
-        </section>
-    <?php endif; ?>
-
-    <section class="panel">
-        <div class="panel-header">
-            <div>
-                <span class="eyebrow">Applications</span>
-                <h2>Latest submissions</h2>
-            </div>
-            <p><?= number_format($totalFiltered) ?> result<?= $totalFiltered === 1 ? '' : 's' ?></p>
+            <?php endif; ?>
         </div>
-
-        <div class="table-responsive">
-            <table class="dashboard-table">
-                <thead>
-                    <tr>
-                        <th>Applicant</th>
-                        <th>Contact</th>
-                        <th>Position</th>
-                        <th>Experience</th>
-                        <th>Status</th>
-                        <th>Feedback</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($applications)): ?>
-                        <?php foreach ($applications as $application): ?>
-                            <tr>
-                                <td>
-                                    <strong><?= htmlspecialchars($application['applicant_name'] ?: $application['account_name'] ?: $application['email'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                    <span class="table-subtext">#<?= (int) $application['id'] ?> &middot; <?= htmlspecialchars(date('M j, Y', strtotime($application['created_at'])), ENT_QUOTES, 'UTF-8') ?></span>
-                                </td>
-                                <td>
-                                    <div><?= htmlspecialchars($application['email'], ENT_QUOTES, 'UTF-8') ?></div>
-                                    <span class="table-subtext"><?= htmlspecialchars($application['phone'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span>
-                                </td>
-                                <td>
-                                    <div><?= htmlspecialchars($application['job_position'] ?? '-', ENT_QUOTES, 'UTF-8') ?></div>
-                                    <span class="table-subtext"><?= htmlspecialchars($application['tech_stack_value'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span>
-                                </td>
-                                <td><?= htmlspecialchars($application['experience'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                <td>
-                                    <span class="status-badge status-<?= htmlspecialchars($application['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($application['status']), ENT_QUOTES, 'UTF-8') ?></span>
-                                </td>
-                                <td>
-                                    <form method="POST" class="action-form action-form-stack">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="action" value="update_application">
-                                        <input type="hidden" name="application_id" value="<?= (int) $application['id'] ?>">
-                                        <input type="hidden" name="return_q" value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
-                                        <input type="hidden" name="return_status" value="<?= htmlspecialchars($statusFilter, ENT_QUOTES, 'UTF-8') ?>">
-                                        <input type="hidden" name="return_page" value="<?= (int) $page ?>">
-                                        <input type="hidden" name="return_view" value="<?= (int) $currentQuery['view'] ?>">
-                                        <select name="status" class="status-select">
-                                            <?php foreach ($allowedStatuses as $statusOption): ?>
-                                                <option value="<?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>" <?= $application['status'] === $statusOption ? 'selected' : '' ?>><?= ucfirst($statusOption) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <textarea name="feedback" rows="2" placeholder="Feedback"><?= htmlspecialchars($application['feedback'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
-                                        <button type="submit" class="btn-primary btn-inline">Save</button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <div class="row-actions">
-                                        <a class="btn-secondary btn-inline" href="<?= appUrl('admin/dashboard.php?' . http_build_query(array_merge($currentQuery, ['view' => (int) $application['id']])) ) ?>">View</a>
-                                        <form method="POST" onsubmit="return confirm('Delete this application?');">
-                                            <?= csrfField() ?>
-                                            <input type="hidden" name="action" value="delete_application">
-                                            <input type="hidden" name="application_id" value="<?= (int) $application['id'] ?>">
-                                            <input type="hidden" name="return_q" value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="return_status" value="<?= htmlspecialchars($statusFilter, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="return_page" value="<?= (int) $page ?>">
-                                            <input type="hidden" name="return_view" value="<?= (int) $currentQuery['view'] ?>">
-                                            <button type="submit" class="btn-danger btn-inline">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="7" class="empty-state">
-                                No matching applications found.
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+    </div>
+    
+    <div class="activity-card">
+        <div class="card-header">
+            <h3>Recent Jobs</h3>
+            <a href="<?= appUrl('admin/jobs.php') ?>" class="view-all">View All</a>
         </div>
-
-        <div class="pagination-bar">
-            <span>Page <?= (int) $page ?> of <?= (int) $totalPages ?></span>
-            <div class="pagination-actions">
-                <?php if ($page > 1): ?>
-                    <a class="btn-secondary btn-inline" href="<?= appUrl('admin/dashboard.php?' . http_build_query(array_merge($currentQuery, ['page' => $page - 1]))) ?>">Previous</a>
-                <?php endif; ?>
-                <?php if ($page < $totalPages): ?>
-                    <a class="btn-secondary btn-inline" href="<?= appUrl('admin/dashboard.php?' . http_build_query(array_merge($currentQuery, ['page' => $page + 1]))) ?>">Next</a>
-                <?php endif; ?>
-            </div>
+        <div class="card-body">
+            <?php if (empty($recentJobs)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-briefcase"></i>
+                    <p>No jobs posted yet</p>
+                </div>
+            <?php else: ?>
+                <div class="activity-list">
+                    <?php foreach ($recentJobs as $job): ?>
+                        <div class="activity-item">
+                            <div class="activity-icon job">
+                                <i class="fas fa-briefcase"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">
+                                    <?= htmlspecialchars($job['title']) ?>
+                                </div>
+                                <div class="activity-meta">
+                                    <span class="activity-status <?= $job['status'] ?>">
+                                        <?= ucfirst($job['status']) ?>
+                                    </span>
+                                    <span class="activity-time">
+                                        <?= time_elapsed_string($job['created_at']) ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
-    </section>
-</section>
+    </div>
+</div>
 
-<?php 
-// Performance optimization: Flush output buffer to send content to browser faster
-if (ob_get_level() > 0) {
-    ob_end_flush();
+<style>
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
 }
-include '../includes/footer.php'; ?>
+
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    transition: all 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.stat-card.primary .stat-icon {
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+}
+
+.stat-card.success .stat-icon {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.stat-card.info .stat-icon {
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+}
+
+.stat-card.warning .stat-icon {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a2e;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.stat-change {
+    font-size: 13px;
+    font-weight: 500;
+    color: #666;
+}
+
+.stat-change.positive {
+    color: #10B981;
+}
+
+.stat-change i {
+    margin-right: 5px;
+}
+
+/* Charts Section */
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 20px 25px;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.card-actions .time-filter {
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #666;
+    background: white;
+    cursor: pointer;
+}
+
+.card-body {
+    padding: 25px;
+}
+
+/* Status Distribution */
+.status-distribution {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+/* Funnel Chart */
+.funnel-container {
+    padding: 10px 0;
+}
+
+.funnel-step {
+    margin-bottom: 20px;
+}
+
+.funnel-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+}
+
+.funnel-bar {
+    height: 40px;
+    background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Recent Activity */
+.recent-activity-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 25px;
+}
+
+.activity-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.view-all {
+    color: #4F46E5;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.view-all:hover {
+    text-decoration: underline;
+}
+
+.activity-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    background: #E0E7FF;
+    color: #4F46E5;
+}
+
+.activity-icon.user {
+    background: #D1FAE5;
+    color: #10B981;
+}
+
+.activity-icon.job {
+    background: #DBEAFE;
+    color: #3B82F6;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+}
+
+.activity-role {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #F3F4F6;
+    color: #666;
+    margin-left: 8px;
+}
+
+.activity-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+}
+
+.activity-status {
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.activity-status.pending {
+    background: #FEF3C7;
+    color: #D97706;
+}
+
+.activity-status.approved {
+    background: #D1FAE5;
+    color: #059669;
+}
+
+.activity-status.rejected {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+
+.activity-status.interview {
+    background: #DBEAFE;
+    color: #1D4ED8;
+}
+
+.activity-status.active {
+    background: #D1FAE5;
+    color: #059669;
+}
+
+.activity-status.closed {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+
+.activity-email {
+    color: #666;
+}
+
+.activity-time {
+    color: #999;
+}
+
+.empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+}
+
+.empty-state i {
+    font-size: 48px;
+    color: #d1d5db;
+    margin-bottom: 15px;
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .charts-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .status-distribution {
+        grid-template-columns: 1fr;
+    }
+    
+    .recent-activity-section {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// User Growth Chart
+const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+const userGrowthData = <?= json_encode($monthlyUsers) ?>;
+const userGrowthLabels = userGrowthData.map(d => d.month);
+const userGrowthValues = userGrowthData.map(d => d.count);
+
+new Chart(userGrowthCtx, {
+    type: 'line',
+    data: {
+        labels: userGrowthLabels.length ? userGrowthLabels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+            label: 'New Users',
+            data: userGrowthValues.length ? userGrowthValues : [0, 0, 0, 0, 0, 0],
+            borderColor: '#4F46E5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Applications Chart
+const applicationsCtx = document.getElementById('applicationsChart').getContext('2d');
+const applicationsData = <?= json_encode($monthlyApplications) ?>;
+const applicationsLabels = applicationsData.map(d => d.month);
+const applicationsValues = applicationsData.map(d => d.count);
+
+new Chart(applicationsCtx, {
+    type: 'bar',
+    data: {
+        labels: applicationsLabels.length ? applicationsLabels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+            label: 'Applications',
+            data: applicationsValues.length ? applicationsValues : [0, 0, 0, 0, 0, 0],
+            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+            borderColor: '#10B981',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Status Distribution Chart
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+const statusData = <?= json_encode($appStatusBreakdown) ?>;
+const statusLabels = statusData.map(d => d.status);
+const statusValues = statusData.map(d => d.count);
+
+const statusColors = {
+    'pending': '#F59E0B',
+    'approved': '#10B981',
+    'rejected': '#DC2626',
+    'interview': '#3B82F6',
+    'reviewed': '#8B5CF6'
+};
+
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: statusLabels.length ? statusLabels : ['Pending', 'Approved', 'Rejected'],
+        datasets: [{
+            data: statusValues.length ? statusValues : [0, 0, 0],
+            backgroundColor: statusLabels.length ? statusLabels.map(s => statusColors[s] || '#4F46E5') : ['#F59E0B', '#10B981', '#DC2626']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right'
+            }
+        }
+    }
+});
+</script>
+
+<?php require_once 'includes/admin_footer.php'; ?>
