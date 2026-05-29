@@ -7,7 +7,7 @@ requireAdminPermission($conn, 'view_settings');
 // Handle settings update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     requireAdminPermission($conn, 'edit_settings');
-    requireApiCsrf();
+    requireAdminPostCsrf();
     
     if ($_POST['action'] === 'update_general') {
         $siteName = trim($_POST['site_name'] ?? '');
@@ -133,8 +133,7 @@ $settings = [
 ];
 ?>
 
-<div class="content-area">
-    <div class="page-header">
+<div class="page-header">
         <div class="page-header-left">
             <h1>Platform Settings</h1>
             <p>Configure your platform settings and preferences</p>
@@ -171,7 +170,7 @@ $settings = [
             
             <form method="POST" action="settings.php">
                 <input type="hidden" name="action" value="update_general">
-                <input type="hidden" name="csrf_token" value="<?= getCsrfToken() ?>">
+                <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 
                 <div class="form-group">
                     <label for="site_name">Site Name</label>
@@ -218,7 +217,7 @@ $settings = [
             
             <form method="POST" action="settings.php">
                 <input type="hidden" name="action" value="update_security">
-                <input type="hidden" name="csrf_token" value="<?= getCsrfToken() ?>">
+                <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 
                 <div class="form-group">
                     <label for="min_password_length">Minimum Password Length</label>
@@ -285,7 +284,7 @@ $settings = [
             
             <form method="POST" action="settings.php">
                 <input type="hidden" name="action" value="update_notifications">
-                <input type="hidden" name="csrf_token" value="<?= getCsrfToken() ?>">
+                <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 
                 <div class="form-group">
                     <label class="checkbox-label">
@@ -327,7 +326,6 @@ $settings = [
             </form>
         </div>
     </div>
-</div>
 
 <script>
 // Tab switching
@@ -466,10 +464,4 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 }
 </style>
 
-<?php
-function getCsrfToken() {
-    return $_SESSION['csrf_token'] ?? '';
-}
-?>
-
-require_once 'includes/admin_footer.php';
+<?php require_once 'includes/admin_footer.php'; ?>

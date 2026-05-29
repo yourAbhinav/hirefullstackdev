@@ -198,7 +198,7 @@ function findAdminByFirebaseUid(mysqli $conn, string $firebaseUid): ?array
 
 function findAdminByEmail(mysqli $conn, string $email): ?array
 {
-    $stmt = $conn->prepare('SELECT id, name, email, role, status, profile_image FROM admin_accounts WHERE email = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT id, name, email, role, status, profile_image, firebase_uid FROM admin_accounts WHERE email = ? LIMIT 1');
     $stmt->bind_param('s', $email);
     $stmt->execute();
     $admin = $stmt->get_result()->fetch_assoc() ?: null;
@@ -261,7 +261,7 @@ function adminFirebaseLogin(mysqli $conn, string $firebaseUid, string $email, st
         }
 
         // Link Google account to existing admin
-        if ($admin['firebase_uid'] === null) {
+        if (empty($admin['firebase_uid'])) {
             linkGoogleToAdmin($conn, $admin['id'], $firebaseUid, $photo);
         }
 

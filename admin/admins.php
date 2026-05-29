@@ -4,19 +4,26 @@ require_once 'includes/admin_header.php';
 
 requireAdminPermission($conn, 'manage_admins');
 
+// Enforce two-level model: only Super Admin can manage administrators.
+if (!isSuperAdmin($admin ?? null)) {
+    $_SESSION['admin_error'] = 'Only Super Admin can manage administrators.';
+    header('Location: ' . appUrl('admin/dashboard.php'));
+    exit;
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    requireApiCsrf();
+    requireAdminPostCsrf();
     
     if ($_POST['action'] === 'create') {
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $role = $_POST['role'] ?? 'admin';
+        // New admins are always role=admin (two-level system).
+        $role = 'admin';
         $status = $_POST['status'] ?? 'active';
         
-        if (empty($name) || empty($email) || empty($password)) {
-            $error = 'All fields are required';
+        if (empty($name) || empty($email)) {
+            $error = 'Name and email are required';
         } else {
             // Check if email already exists
             $stmt = $conn->prepare("SELECT id FROM admin_accounts WHERE email = ?");
@@ -25,7 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if ($stmt->get_result()->num_rows > 0) {
                 $error = 'Email already exists';
             } else {
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                // Generate a strong random password to satisfy schema.
+                // Admins can still log in using Google (email allowlist) if configured.
+                $randomPassword = bin2hex(random_bytes(24));
+                $hashedPassword = password_hash($randomPassword, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("INSERT INTO admin_accounts (name, email, password, role, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
                 $stmt->bind_param('sssss', $name, $email, $hashedPassword, $role, $status);
                 if ($stmt->execute()) {
@@ -44,7 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $adminId = (int) ($_POST['admin_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
-        $role = $_POST['role'] ?? 'admin';
         $status = $_POST['status'] ?? 'active';
         
         if ($adminId <= 0 || empty($name) || empty($email)) {
@@ -60,10 +69,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if (!$oldAdmin) {
                 $error = 'Admin account not found';
             } else {
-                $stmt = $conn->prepare("UPDATE admin_accounts SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
-                $stmt->bind_param('ssssi', $name, $email, $role, $status, $adminId);
+                // Do not allow modifying Super Admin role (two-level system protection).
+                if (($oldAdmin['role'] ?? '') === 'super_admin') {
+                    // Super Admin profile updates are allowed (name/email/status), but role stays super_admin.
+                    $stmt = $conn->prepare("UPDATE admin_accounts SET name = ?, email = ?, status = ? WHERE id = ?");
+                    $stmt->bind_param('sssi', $name, $email, $status, $adminId);
+                } else {
+                    // All non-super admins are fixed role=admin.
+                    $fixedRole = 'admin';
+                    $stmt = $conn->prepare("UPDATE admin_accounts SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
+                    $stmt->bind_param('ssssi', $name, $email, $fixedRole, $status, $adminId);
+                }
                 if ($stmt->execute()) {
-                    logAdminAction($conn, $admin['id'], 'update_admin', 'admin_account', $adminId, $oldAdmin, ['name' => $name, 'email' => $email, 'role' => $role, 'status' => $status]);
+                    $newValues = ['name' => $name, 'email' => $email, 'status' => $status];
+                    if (($oldAdmin['role'] ?? '') !== 'super_admin') {
+                        $newValues['role'] = 'admin';
+                    }
+                    logAdminAction($conn, $admin['id'], 'update_admin', 'admin_account', $adminId, $oldAdmin, $newValues);
                     $success = 'Admin account updated successfully';
                 } else {
                     $error = 'Failed to update admin account';
@@ -130,22 +152,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Get all admin accounts
 $admins = $conn->query("SELECT * FROM admin_accounts ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC) ?: [];
 
-// Get available roles
-$roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
+// Admin statistics (two levels only)
+$totalAdmins = count($admins);
+$activeAdmins = count(array_filter($admins, fn($a) => ($a['status'] ?? '') === 'active'));
+$inactiveAdmins = count(array_filter($admins, fn($a) => ($a['status'] ?? '') !== 'active'));
+$lastAddedAdmin = $admins[0] ?? null;
+
+// Recent admin activity (latest actions touching admin accounts)
+$recentAdminActivity = $conn
+    ->query("SELECT al.action, al.entity_id, al.created_at, a.name as actor_name 
+             FROM admin_audit_logs al 
+             LEFT JOIN admin_accounts a ON al.admin_id = a.id
+             WHERE al.entity_type = 'admin_account'
+             ORDER BY al.created_at DESC
+             LIMIT 6")
+    ->fetch_all(MYSQLI_ASSOC) ?: [];
 ?>
 
-<div class="content-area">
-    <div class="page-header">
-        <div class="page-header-left">
-            <h1>Admin Accounts</h1>
-            <p>Manage admin users and their permissions</p>
-        </div>
-        <div class="page-header-right">
-            <button class="btn btn-primary" onclick="openCreateModal()">
-                <i class="fas fa-plus"></i> Add Admin
-            </button>
-        </div>
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Admin Management</h1>
+        <p>Super Admin only — create and manage administrator accounts.</p>
     </div>
+    <div class="page-header-actions">
+        <button type="button" class="btn btn-primary" onclick="openCreateModal()">
+            <i class="fas fa-plus"></i> Add New Admin
+        </button>
+    </div>
+</div>
 
     <?php if (isset($success)): ?>
         <div class="alert alert-success">
@@ -161,42 +195,77 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
         </div>
     <?php endif; ?>
 
-    <!-- Stats Cards -->
-    <div class="stats-cards">
-        <div class="stat-card primary">
-            <div class="stat-icon">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value"><?= number_format(count($admins)) ?></div>
-                <div class="stat-label">Total Admins</div>
-            </div>
-        </div>
-        <div class="stat-card success">
-            <div class="stat-icon">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value"><?= number_format(count(array_filter($admins, fn($a) => $a['status'] === 'active'))) ?></div>
-                <div class="stat-label">Active Admins</div>
-            </div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-icon">
-                <i class="fas fa-crown"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value"><?= number_format(count(array_filter($admins, fn($a) => $a['role'] === 'super_admin'))) ?></div>
-                <div class="stat-label">Super Admins</div>
-            </div>
+<!-- Admin Statistics -->
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($totalAdmins) ?></div>
+            <div class="stat-label">Total Admins</div>
         </div>
     </div>
-
-    <!-- Admins Table -->
-    <div class="table-container">
-        <div class="table-header">
-            <h2>Admin Accounts (<?= number_format(count($admins)) ?>)</h2>
+    <div class="stat-card success">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($activeAdmins) ?></div>
+            <div class="stat-label">Active Admins</div>
         </div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-icon"><i class="fas fa-user-clock"></i></div>
+        <div class="stat-content">
+            <div class="stat-value"><?= number_format($inactiveAdmins) ?></div>
+            <div class="stat-label">Inactive Admins</div>
+        </div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-icon"><i class="fas fa-user-plus"></i></div>
+        <div class="stat-content">
+            <div class="stat-value"><?= htmlspecialchars($lastAddedAdmin['name'] ?? '—') ?></div>
+            <div class="stat-label">Last Added Admin</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Admin Activity -->
+<div class="chart-card" style="margin-bottom: 22px;">
+    <div class="card-header">
+        <h3>Recent Admin Activity</h3>
+    </div>
+    <div class="card-body">
+        <?php if (empty($recentAdminActivity)): ?>
+            <div class="empty-state">
+                <i class="fas fa-history"></i>
+                <p>No recent admin activity</p>
+            </div>
+        <?php else: ?>
+            <div class="activity-list activity-list-v2">
+                <?php foreach ($recentAdminActivity as $evt): ?>
+                    <div class="activity-row" style="cursor: default;">
+                        <div class="activity-row-main">
+                            <div class="activity-row-name"><?= htmlspecialchars($evt['action']) ?></div>
+                            <div class="activity-row-sub">
+                                By <?= htmlspecialchars($evt['actor_name'] ?? 'Unknown') ?>
+                                <?php if (!empty($evt['entity_id'])): ?>
+                                    <span class="role-pill">Admin #<?= (int) $evt['entity_id'] ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="activity-row-side">
+                            <span class="activity-row-time"><?= time_elapsed_string($evt['created_at']) ?></span>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Admins Table -->
+<div class="table-container">
+    <div class="table-header">
+        <h2>Admins (<?= number_format($totalAdmins) ?>)</h2>
+    </div>
         
         <?php if (empty($admins)): ?>
             <div class="empty-state">
@@ -236,8 +305,8 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
                                 </td>
                                 <td><?= htmlspecialchars($adm['email']) ?></td>
                                 <td>
-                                    <span class="badge badge-<?= $adm['role'] ?>">
-                                        <?= getAdminRoleLabel($adm['role']) ?>
+                                    <span class="status-pill status-<?= htmlspecialchars(($adm['role'] ?? '') === 'super_admin' ? 'approved' : 'recorded') ?>">
+                                        <?= ($adm['role'] ?? '') === 'super_admin' ? 'Super Admin' : 'Admin' ?>
                                     </span>
                                 </td>
                                 <td>
@@ -249,7 +318,7 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
                                 <td><?= date('M d, Y', strtotime($adm['created_at'])) ?></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-icon" onclick="openEditModal(<?= htmlspecialchars(json_encode($adm)) ?>)" title="Edit">
+                                        <button class="btn-icon" onclick="openEditModal(<?= htmlspecialchars(json_encode($adm, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)) ?>)" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <?php if ($adm['id'] !== $admin['id']): ?>
@@ -284,7 +353,7 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
             <form id="adminForm">
                 <input type="hidden" id="adminId" name="admin_id">
                 <input type="hidden" name="action" id="formAction" value="create">
-                <input type="hidden" name="csrf_token" value="<?= getCsrfToken() ?>">
+                <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 
                 <div class="form-group">
                     <label for="adminName">Full Name</label>
@@ -295,20 +364,13 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
                     <label for="adminEmail">Email</label>
                     <input type="email" id="adminEmail" name="email" class="form-control" required>
                 </div>
-                
-                <div class="form-group" id="passwordGroup">
-                    <label for="adminPassword">Password</label>
-                    <input type="password" id="adminPassword" name="password" class="form-control">
-                    <small>Minimum 8 characters</small>
-                </div>
-                
+
                 <div class="form-group">
                     <label for="adminRole">Role</label>
-                    <select id="adminRole" name="role" class="form-control" required>
-                        <?php foreach ($roles as $role): ?>
-                            <option value="<?= $role ?>"><?= getAdminRoleLabel($role) ?></option>
-                        <?php endforeach; ?>
+                    <select id="adminRole" name="role" class="form-control" required disabled>
+                        <option value="admin" selected>Admin</option>
                     </select>
+                    <small>Only Super Admin can manage administrators. New accounts are created as Admin.</small>
                 </div>
                 
                 <div class="form-group">
@@ -316,7 +378,6 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
                     <select id="adminStatus" name="status" class="form-control" required>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
-                        <option value="suspended">Suspended</option>
                     </select>
                 </div>
             </form>
@@ -341,7 +402,7 @@ $roles = ['super_admin', 'admin', 'manager', 'recruiter', 'viewer'];
             <form id="passwordForm">
                 <input type="hidden" id="passwordAdminId" name="admin_id">
                 <input type="hidden" name="action" value="change_password">
-                <input type="hidden" name="csrf_token" value="<?= getCsrfToken() ?>">
+                <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 
                 <p id="passwordAdminName"></p>
                 
@@ -371,9 +432,6 @@ function openCreateModal() {
     document.getElementById('adminId').value = '';
     document.getElementById('adminName').value = '';
     document.getElementById('adminEmail').value = '';
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('adminPassword').required = true;
-    document.getElementById('passwordGroup').style.display = 'block';
     document.getElementById('adminRole').value = 'admin';
     document.getElementById('adminStatus').value = 'active';
     document.getElementById('adminModal').classList.add('show');
@@ -385,10 +443,7 @@ function openEditModal(adminData) {
     document.getElementById('adminId').value = adminData.id;
     document.getElementById('adminName').value = adminData.name;
     document.getElementById('adminEmail').value = adminData.email;
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('adminPassword').required = false;
-    document.getElementById('passwordGroup').style.display = 'none';
-    document.getElementById('adminRole').value = adminData.role;
+    document.getElementById('adminRole').value = (adminData.role === 'super_admin') ? 'admin' : 'admin';
     document.getElementById('adminStatus').value = adminData.status;
     document.getElementById('adminModal').classList.add('show');
 }
@@ -409,7 +464,7 @@ function submitAdminForm() {
     const form = document.getElementById('adminForm');
     const formData = new FormData(form);
     
-    fetch('admins.php', {
+    fetch('<?= appUrl('admin/admins.php') ?>', {
         method: 'POST',
         body: formData
     })
@@ -435,7 +490,7 @@ function submitPasswordForm() {
     const form = document.getElementById('passwordForm');
     const formData = new FormData(form);
     
-    fetch('admins.php', {
+    fetch('<?= appUrl('admin/admins.php') ?>', {
         method: 'POST',
         body: formData
     })
@@ -454,9 +509,9 @@ function deleteAdmin(adminId, adminName) {
         const formData = new FormData();
         formData.append('action', 'delete');
         formData.append('admin_id', adminId);
-        formData.append('csrf_token', '<?= getCsrfToken() ?>');
+        formData.append('csrf_token', '<?= csrfToken() ?>');
         
-        fetch('admins.php', {
+        fetch('<?= appUrl('admin/admins.php') ?>', {
             method: 'POST',
             body: formData
         })
@@ -475,18 +530,7 @@ function getCsrfToken() {
     return '<?= $_SESSION['csrf_token'] ?? '' ?>';
 }
 
-<?php
-function getAdminRoleLabel($role) {
-    $labels = [
-        'super_admin' => 'Super Admin',
-        'admin' => 'Admin',
-        'manager' => 'Manager',
-        'recruiter' => 'Recruiter',
-        'viewer' => 'Viewer'
-    ];
-    return $labels[$role] ?? ucfirst($role);
-}
-?>
+
 </script>
 
 <style>

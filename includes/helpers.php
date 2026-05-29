@@ -39,6 +39,27 @@ if (!defined('APP_BASE_URL')) {
     define('APP_BASE_URL', $configuredBaseUrl !== false && $configuredBaseUrl !== '' ? rtrim($configuredBaseUrl, '/') : detectAppBaseUrl());
 }
 
+/**
+ * Production-safe error display: log errors, never echo warnings to the browser.
+ */
+function initAppErrorHandling(): void
+{
+    if (php_sapi_name() === 'cli') {
+        return;
+    }
+
+    $isProduction = in_array(getenv('APP_ENV'), ['production', 'prod'], true);
+
+    ini_set('log_errors', '1');
+
+    if ($isProduction) {
+        ini_set('display_errors', '0');
+        ini_set('display_startup_errors', '0');
+    }
+}
+
+initAppErrorHandling();
+
 function startSecureSession(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {

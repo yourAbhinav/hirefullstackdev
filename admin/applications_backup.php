@@ -304,28 +304,17 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
                             </td>
                             <td>
                                 <?php if (applicationResumeExistsOnDisk($app['resume_path'] ?? null)): ?>
-                                    <div class="action-buttons">
-                                        <button type="button" class="btn-icon" onclick="viewResume(<?= (int) $app['id'] ?>)" title="View Resume">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button type="button" class="btn-icon" onclick="downloadResume(<?= (int) $app['id'] ?>)" title="Download Resume">
-                                            <i class="fas fa-download"></i>
-                                        </button>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="viewResume(<?= (int) $app['id'] ?>)">
+                                        <i class="fas fa-download"></i> Download
+                                    </button>
                                 <?php else: ?>
                                     <?= renderResumeStatusBadge($app['resume_path'] ?? null, true) ?>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if (!empty($app['status'])): ?>
-                                    <span class="status-pill status-<?= htmlspecialchars($app['status']) ?>">
-                                        <?= applicationStatusLabel($app['status']) ?>
-                                    </span>
-                                <?php else: ?>
-                                    <span class="status-pill status-pending">
-                                        Pending
-                                    </span>
-                                <?php endif; ?>
+                                <span class="status-pill status-<?= htmlspecialchars($app['status']) ?>">
+                                    <?= applicationStatusLabel($app['status']) ?>
+                                </span>
                             </td>
                             <td>
                                 <div class="action-dropdown">
@@ -409,12 +398,10 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
         <div class="modal-body">
             <form id="statusForm">
                 <input type="hidden" name="application_id" id="applicationId">
-                <input type="hidden" name="csrf_token" id="statusCsrfToken" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 
                 <div class="form-group">
                     <label>New Status *</label>
                     <select name="status" required>
-                        <option value="">-- Select Status --</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
@@ -738,7 +725,46 @@ function viewResume(appId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                if (data.preview_url) {
+                const fileExtension = data.file_extension.toLowerCase();
+                
+                // Handle different file types
+                if (fileExtension === 'pdf') {
+                    // PDF - show preview in modal
+                    document.getElementById('resumeModalBody').innerHTML = `
+                        <iframe src="${data.download_url}&preview=1" width="100%" height="600px" style="border: none;"></iframe>
+                        <div class="modal-footer-actions">
+                            <a href="${data.download_url}" class="btn btn-primary" download>
+                                <i class="fas fa-download"></i> Download Resume
+                            </a>
+                        </div>
+                    `;
+                } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExtension)) {
+                    // Images - show preview
+                    document.getElementById('resumeModalBody').innerHTML = `
+                        <div class="image-preview-container">
+                            <img src="${data.download_url}" alt="Resume" style="max-width: 100%; max-height: 600px;" />
+                            <div class="modal-footer-actions">
+                                <a href="${data.download_url}" class="btn btn-primary" download>
+                                    <i class="fas fa-download"></i> Download Resume
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else if (['doc', 'docx'].includes(fileExtension)) {
+                    // DOC/DOCX - provide download with message
+                    document.getElementById('resumeModalBody').innerHTML = `
+                        <div class="resume-download-option">
+                            <i class="fas fa-file-word"></i>
+                            <h4>Document Resume</h4>
+                            <p>File: ${data.filename}</p>
+                            <p>Size: ${data.file_size}</p>
+                            <p class="text-muted">This document format requires download for viewing.</p>
+                            <a href="${data.download_url}" class="btn btn-primary" download>
+                                <i class="fas fa-download"></i> Download Resume
+                            </a>
+                        </div>
+                    `;
+                } else if (data.preview_url) {
                     document.getElementById('resumeModalBody').innerHTML = `
                         <iframe src="${data.preview_url}" width="100%" height="600px" style="border: none;"></iframe>
                         <div class="modal-footer-actions">
@@ -779,20 +805,11 @@ function viewResume(appId) {
         });
 }
 
-// Download resume
-function downloadResume(appId) {
-    window.open(`<?= appUrl('admin/api/resume_api.php') ?>?action=view&application_id=${appId}`, '_blank');
-}
-
 // Open status modal
 function openStatusModal(appId) {
     document.getElementById('applicationId').value = appId;
-    // Don't reset form completely, just set default values
-    document.querySelector('select[name="status"]').value = '';
-    document.querySelector('textarea[name="admin_notes"]').value = '';
+    document.getElementById('statusForm').reset();
     document.getElementById('interviewDateGroup').style.display = 'none';
-    // Update CSRF token
-    document.getElementById('statusCsrfToken').value = window.AdminPanel && AdminPanel.config.csrfToken ? AdminPanel.config.csrfToken : '';
     openModal('statusModal');
 }
 
@@ -802,12 +819,6 @@ document.getElementById('statusForm').addEventListener('submit', function(e) {
     const formData = new FormData(this);
     const data = Object.fromEntries(formData);
     
-    // Validate status is not empty
-    if (!data.status || data.status === '') {
-        alert('Please select a status');
-        return;
-    }
-    
     appApiRequest({ action: 'update_status', ...data })
     .then(result => {
         if (result.success) {
@@ -816,10 +827,6 @@ document.getElementById('statusForm').addEventListener('submit', function(e) {
         } else {
             alert(result.message || 'Failed to update status');
         }
-    })
-    .catch(error => {
-        console.error('Status update error:', error);
-        alert('Failed to update status. Please try again.');
     });
 });
 
@@ -875,25 +882,13 @@ function applyBulkAction() {
     
     if (action === 'delete' && !confirm(`Delete ${selected.length} applications?`)) return;
     
-    const actionText = action === 'delete' ? 'delete' : 'update status for';
-    if (!confirm(`Are you sure you want to ${actionText} ${selected.length} application(s)?`)) return;
-    
     appApiRequest({ action: `bulk_${action}`, application_ids: selected })
     .then(data => {
         if (data.success) {
-            const message = data.message || 'Bulk action completed successfully';
-            alert(message);
-            // Force page reload to show updated status
-            setTimeout(() => {
-                location.reload();
-            }, 500);
+            location.reload();
         } else {
             alert(data.message || 'Bulk action failed');
         }
-    })
-    .catch(error => {
-        console.error('Bulk action error:', error);
-        alert('Failed to perform bulk action. Please try again.');
     });
 }
 </script>

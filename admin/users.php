@@ -86,10 +86,10 @@ $providers = $conn->query("SELECT DISTINCT provider FROM users")->fetch_all(MYSQ
         <p>Manage all registered users, their roles, and account status</p>
     </div>
     <div class="page-header-actions">
-        <a href="<?= appUrl('admin/users_export.php') ?>" class="btn btn-outline">
+        <a href="<?= appUrl('admin/users_export.php') ?><?= !empty($_GET) ? '?' . http_build_query(array_intersect_key($_GET, array_flip(['search', 'role', 'status']))) : '' ?>" class="btn btn-outline">
             <i class="fas fa-download"></i> Export Users
         </a>
-        <button class="btn btn-primary" onclick="openModal('addUserModal')">
+        <button type="button" class="btn btn-primary" onclick="openAddUserModal()">
             <i class="fas fa-plus"></i> Add User
         </button>
     </div>
@@ -310,24 +310,27 @@ $providers = $conn->query("SELECT DISTINCT provider FROM users")->fetch_all(MYSQ
 <div id="addUserModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Add New User</h3>
-            <button class="modal-close" onclick="closeModal('addUserModal')">
+            <h3 id="userFormModalTitle">Add New User</h3>
+            <button type="button" class="modal-close" data-modal-close="addUserModal" aria-label="Close">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="modal-body">
             <form id="addUserForm">
+                <input type="hidden" name="user_id" id="editUserId" value="">
                 <div class="form-group">
                     <label>Full Name *</label>
-                    <input type="text" name="fullName" required>
+                    <input type="text" name="fullName" id="userFullName" required>
                 </div>
                 <div class="form-group">
                     <label>Email *</label>
-                    <input type="email" name="email" required>
+                    <input type="email" name="email" id="userEmail" required>
                 </div>
-                <div class="form-group">
-                    <label>Password *</label>
-                    <input type="password" name="password" required>
+                <div class="form-group" id="passwordFieldGroup">
+                    <label id="passwordFieldLabel">Password *</label>
+                    <input type="password" name="password" id="userPassword">
+                    <small id="passwordHint" style="display:none;color:#64748b;font-size:12px;">Leave blank to keep current password when editing.</small>
+                </div>
                 </div>
                 <div class="form-group">
                     <label>Role *</label>
@@ -356,7 +359,7 @@ $providers = $conn->query("SELECT DISTINCT provider FROM users")->fetch_all(MYSQ
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('addUserModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add User</button>
+                    <button type="submit" class="btn btn-primary" id="userFormSubmitBtn">Add User</button>
                 </div>
             </form>
         </div>
@@ -836,14 +839,6 @@ $providers = $conn->query("SELECT DISTINCT provider FROM users")->fetch_all(MYSQ
 
 <script>
 // Modal functions
-function openModal(modalId) {
-    document.getElementById(modalId).classList.add('show');
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('show');
-}
-
 // Select all checkbox
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
@@ -910,22 +905,64 @@ function viewUser(userId) {
         });
 }
 
-// Edit user
+function resetUserForm() {
+    document.getElementById('userFormModalTitle').textContent = 'Add New User';
+    document.getElementById('userFormSubmitBtn').textContent = 'Add User';
+    document.getElementById('editUserId').value = '';
+    document.getElementById('addUserForm').reset();
+    document.getElementById('userPassword').required = true;
+    document.getElementById('passwordHint').style.display = 'none';
+    document.getElementById('passwordFieldLabel').textContent = 'Password *';
+}
+
+function openAddUserModal() {
+    resetUserForm();
+    openModal('addUserModal');
+}
+
+// Edit user — load into modal
 function editUser(userId) {
-    // Load user data into edit form
-    window.location.href = `user_edit.php?id=${userId}`;
+    const api = (window.AdminPanel && AdminPanel.config.userApi) || '<?= appUrl('admin/api/user_api.php') ?>';
+    fetch(`${api}?action=get_user&id=${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.message || 'Could not load user');
+                return;
+            }
+            const u = data.user;
+            document.getElementById('userFormModalTitle').textContent = 'Edit User';
+            document.getElementById('userFormSubmitBtn').textContent = 'Save Changes';
+            document.getElementById('editUserId').value = u.id;
+            document.getElementById('userFullName').value = u.fullName || '';
+            document.getElementById('userEmail').value = u.email || '';
+            document.querySelector('[name="role"]').value = u.role || 'developer';
+            document.querySelector('[name="phone"]').value = u.phone || '';
+            document.querySelector('[name="experience"]').value = u.experience || '';
+            document.querySelector('[name="techStack"]').value = u.techStack || '';
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userPassword').required = false;
+            document.getElementById('passwordHint').style.display = 'block';
+            document.getElementById('passwordFieldLabel').textContent = 'New Password';
+            openModal('addUserModal');
+        });
 }
 
 // Toggle user verification status
+function userApiRequest(payload) {
+    const api = (window.AdminPanel && AdminPanel.config.userApi) || '<?= appUrl('admin/api/user_api.php') ?>';
+    const body = Object.assign({}, payload, { csrf_token: (window.AdminPanel && AdminPanel.config.csrfToken) || '' });
+    return fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    }).then(response => response.json());
+}
+
 function toggleUserStatus(userId, action) {
     if (!confirm(`Are you sure you want to ${action} this user?`)) return;
     
-    fetch('<?= appUrl('admin/api/user_api.php') ?>', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, user_id: userId })
-    })
-    .then(response => response.json())
+    userApiRequest({ action, user_id: userId })
     .then(data => {
         if (data.success) {
             location.reload();
@@ -939,12 +976,7 @@ function toggleUserStatus(userId, action) {
 function deleteUser(userId) {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
     
-    fetch('<?= appUrl('admin/api/user_api.php') ?>', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', user_id: userId })
-    })
-    .then(response => response.json())
+    userApiRequest({ action: 'delete', user_id: userId })
     .then(data => {
         if (data.success) {
             location.reload();
@@ -971,12 +1003,7 @@ function applyBulkAction() {
     
     if (action === 'delete' && !confirm(`Are you sure you want to delete ${selected.length} users?`)) return;
     
-    fetch('<?= appUrl('admin/api/user_api.php') ?>', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: `bulk_${action}`, user_ids: selected })
-    })
-    .then(response => response.json())
+    userApiRequest({ action: `bulk_${action}`, user_ids: selected })
     .then(data => {
         if (data.success) {
             location.reload();
@@ -991,20 +1018,42 @@ document.getElementById('addUserForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     const data = Object.fromEntries(formData);
-    
-    fetch('<?= appUrl('admin/api/user_api.php') ?>', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create', ...data })
-    })
-    .then(response => response.json())
+    const userId = data.user_id ? parseInt(data.user_id, 10) : 0;
+    const action = userId > 0 ? 'update' : 'create';
+    if (action === 'create' && !data.password) {
+        alert('Password is required for new users');
+        return;
+    }
+    const payload = {
+        action,
+        fullName: data.fullName,
+        email: data.email,
+        role: data.role,
+        phone: data.phone,
+        experience: data.experience,
+        techStack: data.techStack
+    };
+    if (userId > 0) {
+        payload.user_id = userId;
+        if (data.password) payload.password = data.password;
+    } else {
+        payload.password = data.password;
+    }
+    const btn = document.getElementById('userFormSubmitBtn');
+    if (window.AdminPanel) AdminPanel.setButtonLoading(btn, true);
+    userApiRequest(payload)
     .then(result => {
+        if (window.AdminPanel) AdminPanel.setButtonLoading(btn, false);
         if (result.success) {
             closeModal('addUserModal');
             location.reload();
         } else {
-            alert(result.message || 'Failed to create user');
+            alert(result.message || 'Failed to save user');
         }
+    })
+    .catch(() => {
+        if (window.AdminPanel) AdminPanel.setButtonLoading(btn, false);
+        alert('Request failed. Please try again.');
     });
 });
 </script>

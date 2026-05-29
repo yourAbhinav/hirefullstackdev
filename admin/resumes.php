@@ -407,26 +407,6 @@ function getFileIcon(filename) {
 </script>
 
 <?php
-function formatBytes($bytes) {
-    if ($bytes >= 1073741824) {
-        return number_format($bytes / 1073741824, 2) . ' GB';
-    } elseif ($bytes >= 1048576) {
-        return number_format($bytes / 1048576, 2) . ' MB';
-    } elseif ($bytes >= 1024) {
-        return number_format($bytes / 1024, 2) . ' KB';
-    } elseif ($bytes > 0) {
-        return $bytes . ' bytes';
-    }
-    return '0 bytes';
-}
-
-function getTotalResumeSize($conn) {
-    $result = $conn->query("SELECT SUM(LENGTH(resume_path)) as total FROM applications WHERE resume_path IS NOT NULL AND resume_path != ''");
-    $row = $result->fetch_assoc();
-    // This is a rough estimate, actual file size would need filesystem access
-    return $row['total'] ?? 0;
-}
-
 function getFileIcon($filename) {
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
     $icons = [

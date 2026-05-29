@@ -29,6 +29,40 @@ function getCurrentAdmin(mysqli $conn): ?array
 /**
  * Check if admin has specific permission
  */
+/**
+ * Require valid CSRF token on admin form POST requests.
+ */
+function requireAdminPostCsrf(): void
+{
+    $token = $_POST['csrf_token'] ?? null;
+    if (!verifyCsrf(is_string($token) ? $token : null)) {
+        http_response_code(403);
+        die('CSRF validation failed');
+    }
+}
+
+/**
+ * Two-level admin RBAC (Super Admin, Admin).
+ *
+ * Super Admin: full access including admin management.
+ * Admin: full product access but cannot manage administrators.
+ */
+function isSuperAdmin(?array $admin): bool
+{
+    return is_array($admin) && (($admin['role'] ?? '') === 'super_admin');
+}
+
+function isAdminRoleValid(string $role): bool
+{
+    return in_array($role, ['super_admin', 'admin'], true);
+}
+
+function isSuperAdminOnlyPermission(string $permission): bool
+{
+    // Administrator management is Super Admin only.
+    return in_array($permission, ['manage_admins', 'manage_roles', 'edit_admin_permissions'], true);
+}
+
 function adminHasPermission(mysqli $conn, string $permission): bool
 {
     $admin = getCurrentAdmin($conn);
@@ -36,9 +70,20 @@ function adminHasPermission(mysqli $conn, string $permission): bool
         return false;
     }
 
-    // Super admins have all permissions
-    if ($admin['role'] === 'super_admin') {
+    // Super Admin has full access.
+    if (isSuperAdmin($admin)) {
         return true;
+    }
+
+    // Enforce two-level hierarchy: Admins can do everything except manage administrators.
+    if (($admin['role'] ?? '') === 'admin') {
+        return !isSuperAdminOnlyPermission($permission);
+    }
+
+    // Any legacy/unknown roles are treated as non-privileged.
+    // We keep the old permission table check only for backward compatibility when a legacy role exists.
+    if (!isAdminRoleValid((string) ($admin['role'] ?? ''))) {
+        return false;
     }
 
     $stmt = $conn->prepare('SELECT COUNT(*) as has_perm FROM admin_permissions WHERE admin_id = ? AND permission = ? LIMIT 1');
@@ -397,40 +442,108 @@ function getDashboardStats(mysqli $conn): array
 }
 
 /**
- * Convert datetime to human-readable time elapsed string
+ * Convert datetime to human-readable time elapsed string (PHP 8.2+ safe).
  */
 function time_elapsed_string($datetime, $full = false): string
 {
-    $now = new DateTime;
-    $ago = new DateTime($datetime);
-    $diff = $now->diff($ago);
+    if ($datetime === null || $datetime === '') {
+        return 'just now';
+    }
 
-    $diff->w = floor($diff->d / 7);
-    $diff->d -= $diff->w * 7;
+    $timestamp = strtotime((string) $datetime);
+    if ($timestamp === false) {
+        return 'just now';
+    }
 
-    $string = array(
-        'y' => 'year',
-        'm' => 'month',
-        'w' => 'week',
-        'd' => 'day',
-        'h' => 'hour',
-        'i' => 'minute',
-        's' => 'second',
-    );
-    
-    foreach ($string as $k => &$v) {
-        if ($diff->$k) {
-            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
-        } else {
-            unset($string[$k]);
+    $seconds = time() - $timestamp;
+    if ($seconds < 0) {
+        return 'just now';
+    }
+    if ($seconds < 45) {
+        return 'just now';
+    }
+
+    $units = [
+        31536000 => 'year',
+        2592000 => 'month',
+        604800 => 'week',
+        86400 => 'day',
+        3600 => 'hour',
+        60 => 'minute',
+    ];
+
+    $parts = [];
+    foreach ($units as $unitSeconds => $label) {
+        $count = (int) floor($seconds / $unitSeconds);
+        if ($count < 1) {
+            continue;
+        }
+        $parts[] = $count . ' ' . $label . ($count === 1 ? '' : 's');
+        $seconds -= $count * $unitSeconds;
+        if (!$full) {
+            break;
         }
     }
 
-    if (!$full) {
-        $string = array_slice($string, 0, 1);
+    if ($parts === []) {
+        return 'just now';
     }
-    
-    return $string ? implode(', ', $string) . ' ago' : 'just now';
+
+    return ($full ? implode(', ', $parts) : $parts[0]) . ' ago';
+}
+
+/**
+ * Whether an application row references a resume path.
+ */
+function applicationHasResume(?string $resumePath): bool
+{
+    return is_string($resumePath) && trim($resumePath) !== '';
+}
+
+/**
+ * Whether the resume file exists on disk under the project root.
+ */
+function applicationResumeExistsOnDisk(?string $resumePath): bool
+{
+    if (!applicationHasResume($resumePath)) {
+        return false;
+    }
+
+    $projectRoot = realpath(__DIR__ . '/..');
+    if ($projectRoot === false) {
+        return false;
+    }
+
+    $fullPath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($resumePath, '/'));
+
+    return is_file($fullPath);
+}
+
+/**
+ * HTML badge for resume upload status in admin UI.
+ */
+function renderResumeStatusBadge(?string $resumePath, bool $compact = false): string
+{
+    if (!applicationHasResume($resumePath)) {
+        $label = $compact ? 'No Resume' : '✗ No Resume';
+        return '<span class="resume-status resume-missing"><i class="fas fa-times-circle" aria-hidden="true"></i> ' . escape($label) . '</span>';
+    }
+
+    if (!applicationResumeExistsOnDisk($resumePath)) {
+        $label = $compact ? 'File Missing' : '✗ File Missing';
+        return '<span class="resume-status resume-missing"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> ' . escape($label) . '</span>';
+    }
+
+    $label = $compact ? 'Uploaded' : '✓ Resume Uploaded';
+    return '<span class="resume-status resume-ok"><i class="fas fa-check-circle" aria-hidden="true"></i> ' . escape($label) . '</span>';
+}
+
+/**
+ * Human-readable application status label.
+ */
+function applicationStatusLabel(string $status): string
+{
+    return ucfirst(str_replace('_', ' ', $status));
 }
 
 /**
@@ -482,4 +595,232 @@ function getFileIcon(string $filename): string
     ];
     
     return $iconMap[$extension] ?? 'file';
+}
+
+/**
+ * Ensure admin access request table exists.
+ */
+function ensureAdminAccessRequestTable(mysqli $conn): bool
+{
+    $sql = 'CREATE TABLE IF NOT EXISTS admin_access_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        full_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        request_note TEXT NULL,
+        status ENUM("pending", "approved", "rejected") NOT NULL DEFAULT "pending",
+        approval_token VARCHAR(128) NOT NULL,
+        token_expires_at DATETIME NOT NULL,
+        requested_ip VARCHAR(45) DEFAULT NULL,
+        reviewed_by INT DEFAULT NULL,
+        reviewed_at DATETIME DEFAULT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_admin_access_email_pending (email, status),
+        UNIQUE KEY uniq_admin_access_token (approval_token),
+        INDEX idx_admin_access_status (status),
+        INDEX idx_admin_access_expires (token_expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
+    return $conn->query($sql) === true;
+}
+
+/**
+ * Active admin emails that can approve new admin requests.
+ */
+function getAdminApproverEmails(mysqli $conn): array
+{
+    $stmt = $conn->prepare("SELECT email FROM admin_accounts WHERE status = 'active' AND role IN ('super_admin', 'admin') ORDER BY role = 'super_admin' DESC, id ASC");
+    if (!$stmt) {
+        return [];
+    }
+
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
+    $stmt->close();
+
+    $emails = [];
+    foreach ($rows as $row) {
+        $email = normalizeEmail((string) ($row['email'] ?? ''));
+        if ($email !== '' && validateEmail($email)) {
+            $emails[] = $email;
+        }
+    }
+
+    return array_values(array_unique($emails));
+}
+
+/**
+ * Submit a secure admin access request (pending approval).
+ */
+function submitAdminAccessRequest(mysqli $conn, string $fullName, string $email, string $password, string $note = ''): array
+{
+    if (!ensureAdminAccessRequestTable($conn)) {
+        return ['success' => false, 'message' => 'Unable to initialize admin request storage.'];
+    }
+
+    $fullName = trim($fullName);
+    $email = normalizeEmail($email);
+    $note = trim($note);
+
+    if ($fullName === '' || strlen($fullName) < 2) {
+        return ['success' => false, 'message' => 'Please enter your full name.'];
+    }
+
+    if (!validateEmail($email)) {
+        return ['success' => false, 'message' => 'Please enter a valid email address.'];
+    }
+
+    if (strlen($password) < 12) {
+        return ['success' => false, 'message' => 'Password must be at least 12 characters.'];
+    }
+
+    if (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password)) {
+        return ['success' => false, 'message' => 'Password must include uppercase, lowercase, and a number.'];
+    }
+
+    if (in_array($password, ['admin123', 'Admin@123', 'password123', 'Password123'], true)) {
+        return ['success' => false, 'message' => 'Choose a stronger password than common defaults.'];
+    }
+
+    $existingAdmin = $conn->prepare('SELECT id FROM admin_accounts WHERE email = ? LIMIT 1');
+    if ($existingAdmin) {
+        $existingAdmin->bind_param('s', $email);
+        $existingAdmin->execute();
+        $hasAdmin = $existingAdmin->get_result()->num_rows > 0;
+        $existingAdmin->close();
+        if ($hasAdmin) {
+            return ['success' => false, 'message' => 'An admin account with this email already exists.'];
+        }
+    }
+
+    $pendingStmt = $conn->prepare("SELECT id FROM admin_access_requests WHERE email = ? AND status = 'pending' LIMIT 1");
+    if ($pendingStmt) {
+        $pendingStmt->bind_param('s', $email);
+        $pendingStmt->execute();
+        $hasPending = $pendingStmt->get_result()->num_rows > 0;
+        $pendingStmt->close();
+        if ($hasPending) {
+            return ['success' => false, 'message' => 'A pending request already exists for this email.'];
+        }
+    }
+
+    $approvers = getAdminApproverEmails($conn);
+    if ($approvers === []) {
+        return ['success' => false, 'message' => 'No active administrators are available to review requests yet.'];
+    }
+
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    $approvalToken = bin2hex(random_bytes(32));
+    $expiresAt = date('Y-m-d H:i:s', time() + (72 * 3600));
+    $requestedIp = requestClientIp();
+
+    $insert = $conn->prepare('INSERT INTO admin_access_requests (full_name, email, password_hash, request_note, status, approval_token, token_expires_at, requested_ip) VALUES (?, ?, ?, ?, "pending", ?, ?, ?)');
+    if (!$insert) {
+        return ['success' => false, 'message' => 'Unable to save your request. Please try again.'];
+    }
+
+    $insert->bind_param('sssssss', $fullName, $email, $passwordHash, $note, $approvalToken, $expiresAt, $requestedIp);
+    if (!$insert->execute()) {
+        $insert->close();
+        return ['success' => false, 'message' => 'Unable to save your request. Please try again.'];
+    }
+    $insert->close();
+
+    $approvalUrl = appUrl('admin/approve_admin_access.php?token=' . urlencode($approvalToken));
+    $subject = 'DevHire Admin Access Approval Required';
+    $body = "A new admin access request was submitted.\n\n"
+        . "Name: {$fullName}\n"
+        . "Email: {$email}\n"
+        . "IP: {$requestedIp}\n"
+        . "Note: " . ($note !== '' ? $note : '(none)') . "\n\n"
+        . "Review and approve securely:\n{$approvalUrl}\n\n"
+        . "This link expires in 72 hours.";
+
+    $headers = 'From: DevHire Security <noreply@devhire.local>' . "\r\n" . 'Content-Type: text/plain; charset=UTF-8';
+    foreach ($approvers as $approverEmail) {
+        @mail($approverEmail, $subject, $body, $headers);
+    }
+
+    return [
+        'success' => true,
+        'message' => 'Your request was sent. An existing administrator must approve it before you can sign in.',
+    ];
+}
+
+/**
+ * Load a pending admin access request by token.
+ */
+function getAdminAccessRequestByToken(mysqli $conn, string $token): ?array
+{
+    if (!ensureAdminAccessRequestTable($conn)) {
+        return null;
+    }
+
+    $token = trim($token);
+    if ($token === '') {
+        return null;
+    }
+
+    $stmt = $conn->prepare("SELECT * FROM admin_access_requests WHERE approval_token = ? AND status = 'pending' AND token_expires_at > NOW() LIMIT 1");
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('s', $token);
+    $stmt->execute();
+    $request = $stmt->get_result()->fetch_assoc() ?: null;
+    $stmt->close();
+
+    return $request;
+}
+
+/**
+ * Approve a pending admin access request.
+ */
+function approveAdminAccessRequest(mysqli $conn, string $token, int $reviewerAdminId): array
+{
+    $request = getAdminAccessRequestByToken($conn, $token);
+    if ($request === null) {
+        return ['success' => false, 'message' => 'This approval link is invalid or expired.'];
+    }
+
+    $email = normalizeEmail((string) $request['email']);
+    $existing = $conn->prepare('SELECT id FROM admin_accounts WHERE email = ? LIMIT 1');
+    if ($existing) {
+        $existing->bind_param('s', $email);
+        $existing->execute();
+        $exists = $existing->get_result()->num_rows > 0;
+        $existing->close();
+        if ($exists) {
+            return ['success' => false, 'message' => 'An admin account with this email already exists.'];
+        }
+    }
+
+    $insert = $conn->prepare("INSERT INTO admin_accounts (name, email, password, role, status, created_at) VALUES (?, ?, ?, 'admin', 'active', NOW())");
+    if (!$insert) {
+        return ['success' => false, 'message' => 'Unable to create the admin account.'];
+    }
+
+    $name = (string) $request['full_name'];
+    $passwordHash = (string) $request['password_hash'];
+    $insert->bind_param('sss', $name, $email, $passwordHash);
+    if (!$insert->execute()) {
+        $insert->close();
+        return ['success' => false, 'message' => 'Unable to create the admin account.'];
+    }
+
+    $newAdminId = (int) $insert->insert_id;
+    $insert->close();
+
+    $update = $conn->prepare("UPDATE admin_access_requests SET status = 'approved', reviewed_by = ?, reviewed_at = NOW() WHERE id = ?");
+    if ($update) {
+        $requestId = (int) $request['id'];
+        $update->bind_param('ii', $reviewerAdminId, $requestId);
+        $update->execute();
+        $update->close();
+    }
+
+    logAdminAction($conn, $reviewerAdminId, 'approve_admin_request', 'admin_access_request', (int) $request['id'], null, ['email' => $email, 'new_admin_id' => $newAdminId]);
+
+    return ['success' => true, 'message' => 'Admin account approved and activated successfully.'];
 }

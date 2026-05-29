@@ -11,17 +11,45 @@ if (isAdminLoggedIn()) {
 $page_title = 'Admin Login - DevHire';
 $loginError = $_SESSION['admin_error'] ?? '';
 $googleError = $_SESSION['google_error'] ?? '';
+$requestSuccess = '';
 unset($_SESSION['admin_error']);
 unset($_SESSION['google_error']);
 
+// Handle secure admin access request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') === 'request_admin_access')) {
+    if (trim((string) ($_POST['website'] ?? '')) !== '') {
+        $requestSuccess = 'Your request was sent. An existing administrator must approve it before you can sign in.';
+    } elseif (!verifyCsrf($_POST['csrf_token'] ?? null)) {
+        $loginError = 'Security check failed. Please refresh and try again.';
+    } elseif ((string) ($_POST['request_password'] ?? '') !== (string) ($_POST['request_password_confirm'] ?? '')) {
+        $loginError = 'Password confirmation does not match.';
+    } else {
+        $requestResult = submitAdminAccessRequest(
+            $conn,
+            (string) ($_POST['request_name'] ?? ''),
+            (string) ($_POST['request_email'] ?? ''),
+            (string) ($_POST['request_password'] ?? ''),
+            (string) ($_POST['request_note'] ?? '')
+        );
+
+        if ($requestResult['success']) {
+            $requestSuccess = $requestResult['message'];
+        } else {
+            $loginError = $requestResult['message'];
+        }
+    }
+}
+
 // Handle login form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 'request_admin_access')) {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $remember = isset($_POST['remember']);
     
     if (empty($email) || empty($password)) {
         $loginError = 'Please enter both email and password';
+    } elseif (in_array($password, ['admin123', 'Admin@123'], true)) {
+        $loginError = 'Default passwords are disabled. Use your assigned secure password or Google sign-in.';
     } else {
         $result = adminLogin($conn, $email, $password, $remember);
         
@@ -41,8 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($page_title) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script defer src="<?= appUrl('assets/js/firebase-config.js') ?>"></script>
     <style>
         * {
             margin: 0;
@@ -315,6 +344,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-decoration: underline;
         }
 
+        .success-message {
+            background: #DCFCE7;
+            color: #166534;
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .request-admin-btn {
+            width: 100%;
+            padding: 14px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .request-admin-btn:hover {
+            border-color: #4F46E5;
+            color: #fff;
+        }
+
+        .request-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.75);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .request-modal.is-open {
+            display: flex;
+        }
+
+        .request-modal-card {
+            width: min(520px, 100%);
+            background: #fff;
+            border-radius: 16px;
+            padding: 28px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .request-modal-card h3 {
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .request-modal-card p {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .request-modal-close {
+            float: right;
+            border: 0;
+            background: transparent;
+            font-size: 22px;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .password-hint {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
         @media (max-width: 768px) {
             .login-container {
                 flex-direction: column;
@@ -379,16 +489,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?= htmlspecialchars($googleError) ?>
                 </div>
             <?php endif; ?>
+
+            <?php if ($requestSuccess): ?>
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    <?= htmlspecialchars($requestSuccess) ?>
+                </div>
+            <?php endif; ?>
             
-            <form method="POST" action="">
+            <form method="POST" action="" id="adminLoginForm">
+                <input type="hidden" name="form_action" value="admin_login">
                 <div class="form-group">
                     <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" placeholder="admin@devhire.com" required>
+                    <input type="email" id="email" name="email" placeholder="name@company.com" required autocomplete="username">
                 </div>
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
                 </div>
                 
                 <div class="remember-forgot">
@@ -412,96 +530,196 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <img src="https://www.google.com/favicon.ico" alt="Google">
                 Sign in with Google
             </button>
+
+            <button type="button" class="request-admin-btn" id="openRequestAdminModal">
+                <i class="fas fa-user-shield"></i> Request Admin Account
+            </button>
+        </div>
+    </div>
+
+    <div class="request-modal" id="requestAdminModal" aria-hidden="true">
+        <div class="request-modal-card">
+            <button type="button" class="request-modal-close" id="closeRequestAdminModal" aria-label="Close">&times;</button>
+            <h3>Request Admin Access</h3>
+            <p>Submit a secure request. An existing administrator will receive an email to approve your account.</p>
+            <form method="POST" action="">
+                <input type="hidden" name="form_action" value="request_admin_access">
+                <?= csrfField() ?>
+                <input type="text" name="website" value="" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;" aria-hidden="true">
+
+                <div class="form-group">
+                    <label for="request_name">Full Name</label>
+                    <input type="text" id="request_name" name="request_name" required minlength="2">
+                </div>
+                <div class="form-group">
+                    <label for="request_email">Work Email</label>
+                    <input type="email" id="request_email" name="request_email" required>
+                </div>
+                <div class="form-group">
+                    <label for="request_password">Secure Password</label>
+                    <input type="password" id="request_password" name="request_password" required minlength="12">
+                    <small class="password-hint">Minimum 12 characters with uppercase, lowercase, and a number.</small>
+                </div>
+                <div class="form-group">
+                    <label for="request_password_confirm">Confirm Password</label>
+                    <input type="password" id="request_password_confirm" name="request_password_confirm" required minlength="12">
+                </div>
+                <div class="form-group">
+                    <label for="request_note">Reason (optional)</label>
+                    <input type="text" id="request_note" name="request_note" maxlength="255" placeholder="Why do you need admin access?">
+                </div>
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-paper-plane"></i> Submit for Approval
+                </button>
+            </form>
         </div>
     </div>
 
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: '<?= getenv('FIREBASE_API_KEY') ?: 'AIzaSyD-7hW5l6k7j8m9n0p1q2r3s4t5u6v7w8x9y0z' ?>',
-            authDomain: '<?= getenv('FIREBASE_AUTH_DOMAIN') ?: 'abhhire-e8807.firebaseapp.com' ?>',
-            projectId: '<?= getenv('FIREBASE_PROJECT_ID') ?: 'abhhire-e8807' ?>',
-            storageBucket: '<?= getenv('FIREBASE_STORAGE_BUCKET') ?: 'abhhire-e8807.appspot.com' ?>',
-            messagingSenderId: '<?= getenv('FIREBASE_MESSAGING_SENDER_ID') ?: '123456789012' ?>',
-            appId: '<?= getenv('FIREBASE_APP_ID') ?: '1:123456789012:web:abcdef123456' ?>'
-        };
+        const adminGoogleHandlerUrl = <?= json_encode(appUrl('auth/admin_google_handler.php'), JSON_UNESCAPED_SLASHES) ?>;
+        const adminDashboardUrl = <?= json_encode(appUrl('admin/dashboard.php'), JSON_UNESCAPED_SLASHES) ?>;
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
+        function showLoginError(message) {
+            document.querySelectorAll('.error-message').forEach((node) => node.remove());
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + message;
+            const loginForm = document.getElementById('adminLoginForm');
+            if (loginForm && loginForm.parentNode) {
+                loginForm.parentNode.insertBefore(errorDiv, loginForm);
+            }
+        }
 
-        // Google Sign-In
-        document.getElementById('googleSignInBtn').addEventListener('click', async function() {
-            const btn = this;
-            btn.classList.add('loading');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+        function googleAuthErrorMessage(error) {
+            const code = error && error.code ? error.code : '';
+            if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+                return 'Google sign-in was cancelled.';
+            }
+            if (code === 'auth/popup-blocked') {
+                return 'Popup blocked. Allow popups for this site and try again.';
+            }
+            if (code === 'auth/unauthorized-domain') {
+                return 'Add localhost to Firebase Authentication authorized domains.';
+            }
+            return (error && error.message) ? error.message : 'Google sign-in failed. Please try again.';
+        }
+
+        function resetGoogleButton(btn) {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            btn.innerHTML = '<img src="https://www.google.com/favicon.ico" alt="Google"> Sign in with Google';
+        }
+
+        async function syncAdminGoogleSession(user) {
+            const idToken = await user.getIdToken(true);
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 20000);
 
             try {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                const result = await auth.signInWithPopup(provider);
-                const idToken = await result.user.getIdToken();
-
-                // Send to server for verification
-                const response = await fetch('../auth/admin_google_handler.php', {
+                const response = await fetch(adminGoogleHandlerUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ idToken: idToken })
+                    body: JSON.stringify({ idToken }),
+                    signal: controller.signal
                 });
 
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
 
-                if (data.success) {
-                    window.location.href = '../admin/dashboard.php';
-                } else {
-                    // Show error message
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'error-message';
-                    errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
-                    
-                    // Remove any existing error messages
-                    const existingErrors = document.querySelectorAll('.error-message');
-                    existingErrors.forEach(e => e.remove());
-                    
-                    // Insert error message before the form
-                    const form = document.querySelector('form');
-                    form.parentNode.insertBefore(errorDiv, form);
-                    
-                    btn.classList.remove('loading');
-                    btn.disabled = false;
-                    btn.innerHTML = '<img src="https://www.google.com/favicon.ico" alt="Google"> Sign in with Google';
+                if (response.ok && data.success) {
+                    window.location.assign(adminDashboardUrl);
+                    return;
                 }
-            } catch (error) {
-                console.error('Google Sign-In Error:', error);
-                
-                // Show error message
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error-message';
-                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Google sign-in failed. Please try again.';
-                
-                // Remove any existing error messages
-                const existingErrors = document.querySelectorAll('.error-message');
-                existingErrors.forEach(e => e.remove());
-                
-                // Insert error message before the form
-                const form = document.querySelector('form');
-                form.parentNode.insertBefore(errorDiv, form);
-                
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                btn.innerHTML = '<img src="https://www.google.com/favicon.ico" alt="Google"> Sign in with Google';
+
+                throw new Error(data.message || 'Google sign-in was not authorized for this admin account.');
+            } finally {
+                window.clearTimeout(timeoutId);
             }
+        }
+
+        function waitForFirebase(callback, timeout = 8000) {
+            const start = Date.now();
+            const check = () => {
+                const ready = typeof window.firebase !== 'undefined'
+                    && window.DevHireFirebase
+                    && typeof window.DevHireFirebase.signInWithGoogle === 'function';
+
+                if (ready) {
+                    callback();
+                } else if (Date.now() - start < timeout) {
+                    window.setTimeout(check, 50);
+                }
+            };
+            check();
+        }
+
+        waitForFirebase(() => {
+            const devHireFirebase = window.DevHireFirebase;
+            const signInButton = document.getElementById('googleSignInBtn');
+            if (!signInButton) {
+                return;
+            }
+
+            void devHireFirebase.setFirebasePersistence();
+
+            signInButton.addEventListener('click', async function () {
+                const btn = this;
+                btn.classList.add('loading');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+
+                try {
+                    const result = await devHireFirebase.signInWithGoogle();
+                    await syncAdminGoogleSession(result.user);
+                } catch (error) {
+                    console.error('Google Sign-In Error:', error);
+                    showLoginError(googleAuthErrorMessage(error));
+                    resetGoogleButton(btn);
+                }
+            });
         });
 
-        // Handle auth state changes
-        auth.onAuthStateChanged(function(user) {
-            if (user) {
-                // User is signed in, but we still need server verification
-                // So we don't redirect automatically
-            }
-        });
+        const requestModal = document.getElementById('requestAdminModal');
+        const openRequestModalBtn = document.getElementById('openRequestAdminModal');
+        const closeRequestModalBtn = document.getElementById('closeRequestAdminModal');
+
+        function openRequestModal() {
+            requestModal.classList.add('is-open');
+            requestModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeRequestModal() {
+            requestModal.classList.remove('is-open');
+            requestModal.setAttribute('aria-hidden', 'true');
+        }
+
+        if (openRequestModalBtn) {
+            openRequestModalBtn.addEventListener('click', openRequestModal);
+        }
+        if (closeRequestModalBtn) {
+            closeRequestModalBtn.addEventListener('click', closeRequestModal);
+        }
+        if (requestModal) {
+            requestModal.addEventListener('click', (event) => {
+                if (event.target === requestModal) {
+                    closeRequestModal();
+                }
+            });
+        }
+
+        const requestForm = requestModal ? requestModal.querySelector('form') : null;
+        if (requestForm) {
+            requestForm.addEventListener('submit', (event) => {
+                const password = document.getElementById('request_password').value;
+                const confirm = document.getElementById('request_password_confirm').value;
+                if (password !== confirm) {
+                    event.preventDefault();
+                    alert('Passwords do not match.');
+                }
+            });
+        }
     </script>
 </body>
 </html>

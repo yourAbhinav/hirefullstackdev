@@ -135,6 +135,5 @@ INSERT INTO platform_settings (setting_key, setting_value, setting_type, categor
 ('password_min_length', '8', 'integer', 'security', 'Minimum password length', FALSE),
 ('require_password_special', 'true', 'boolean', 'security', 'Require special characters in passwords', FALSE);
 
--- Create a default super admin account (password: Admin@123)
-INSERT INTO admin_accounts (name, email, password, role, status) VALUES
-('Super Admin', 'admin@devhire.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', 'active');
+-- NOTE: No default admin account created. 
+-- Create your admin account manually through the admin panel or direct database insertion.
