@@ -13,24 +13,13 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $limit = 25;
 $offset = ($page - 1) * $limit;
 
-$exportQuery = $_GET;
-unset($exportQuery['page']);
-$filteredExportUrl = appUrl('admin/applications_export.php' . (!empty($exportQuery) ? '?' . http_build_query($exportQuery) : ''));
-$allExportUrl = appUrl('admin/applications_export.php?all=1');
-
-// Sanitize input parameters
-$search = htmlspecialchars(strip_tags(trim($search)), ENT_QUOTES, 'UTF-8');
-$statusFilter = htmlspecialchars(strip_tags(trim($statusFilter)), ENT_QUOTES, 'UTF-8');
-$dateFilter = htmlspecialchars(strip_tags(trim($dateFilter)), ENT_QUOTES, 'UTF-8');
-$jobFilter = (int) $jobFilter;
-
 // Build query with filters
 $where = ['1=1'];
 $params = [];
 $types = '';
 
 if (!empty($search)) {
-    $where[] = '(a.full_name LIKE ? OR a.email LIKE ? OR a.job_position LIKE ?)';
+    $where[] = '(full_name LIKE ? OR email LIKE ? OR job_position LIKE ?)';
     $searchParam = "%$search%";
     $params[] = $searchParam;
     $params[] = $searchParam;
@@ -39,13 +28,13 @@ if (!empty($search)) {
 }
 
 if (!empty($statusFilter)) {
-    $where[] = 'a.status = ?';
+    $where[] = 'status = ?';
     $params[] = $statusFilter;
     $types .= 's';
 }
 
 if (!empty($jobFilter)) {
-    $where[] = 'a.job_id = ?';
+    $where[] = 'job_id = ?';
     $params[] = $jobFilter;
     $types .= 'i';
 }
@@ -53,16 +42,16 @@ if (!empty($jobFilter)) {
 if (!empty($dateFilter)) {
     switch ($dateFilter) {
         case 'today':
-            $where[] = 'DATE(a.created_at) = CURDATE()';
+            $where[] = 'DATE(created_at) = CURDATE()';
             break;
         case 'week':
-            $where[] = 'a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)';
+            $where[] = 'created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)';
             break;
         case 'month':
-            $where[] = 'a.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)';
+            $where[] = 'created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)';
             break;
         case 'quarter':
-            $where[] = 'a.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)';
+            $where[] = 'created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)';
             break;
     }
 }
@@ -70,14 +59,13 @@ if (!empty($dateFilter)) {
 $whereClause = implode(' AND ', $where);
 
 // Get total count
-$countQuery = "SELECT COUNT(*) as total FROM applications a WHERE $whereClause";
+$countQuery = "SELECT COUNT(*) as total FROM applications WHERE $whereClause";
 $stmt = $conn->prepare($countQuery);
 if (!empty($params)) {
     $stmt->bind_param($types, ...$params);
 }
 $stmt->execute();
-$result = $stmt->get_result();
-$totalApplications = $result->fetch_assoc()['total'] ?? 0;
+$totalApplications = $stmt->get_result()->fetch_assoc()['total'];
 $stmt->close();
 
 // Get applications with pagination
@@ -97,13 +85,12 @@ if (!empty($params)) {
     $stmt->bind_param($types, ...$params);
 }
 $stmt->execute();
-$result = $stmt->get_result();
-$applications = $result->fetch_all(MYSQLI_ASSOC) ?: [];
+$applications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
 $stmt->close();
 
 // Get unique statuses and jobs for filters
-$statuses = $conn->query("SELECT DISTINCT status FROM applications WHERE status IS NOT NULL AND status <> '' ORDER BY status")->fetch_all(MYSQLI_ASSOC) ?: [];
-$jobs = $conn->query("SELECT id, title FROM jobs ORDER BY title")->fetch_all(MYSQLI_ASSOC) ?: [];
+$statuses = $conn->query("SELECT DISTINCT status FROM applications")->fetch_all(MYSQLI_ASSOC);
+$jobs = $conn->query("SELECT id, title FROM jobs ORDER BY title")->fetch_all(MYSQLI_ASSOC);
 
 // Get status counts
 $statusCounts = [];
@@ -111,8 +98,7 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
     $stmt = $conn->prepare("SELECT COUNT(*) as count FROM applications WHERE status = ?");
     $stmt->bind_param('s', $status);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $statusCounts[$status] = $result->fetch_assoc()['count'] ?? 0;
+    $statusCounts[$status] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
     $stmt->close();
 }
 ?>
@@ -124,7 +110,7 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
         <p>Review, manage, and track all job applications</p>
     </div>
     <div class="page-header-actions">
-        <a href="<?= $filteredExportUrl ?>" class="btn btn-outline">
+        <a href="<?= appUrl('admin/applications_export.php') ?>" class="btn btn-outline">
             <i class="fas fa-download"></i> Export CSV
         </a>
         <button class="btn btn-primary" onclick="openModal('exportModal')">
@@ -193,70 +179,56 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
 
 <!-- Filters -->
 <div class="filters-section">
-    <div class="filters-header">
-        <h3><i class="fas fa-filter"></i> Filter Applications</h3>
-        <?php if (!empty($search) || !empty($statusFilter) || !empty($jobFilter) || !empty($dateFilter)): ?>
-            <a href="<?= appUrl('admin/applications.php') ?>" class="btn btn-sm btn-outline">
-                <i class="fas fa-times"></i> Clear Filters
-            </a>
-        <?php endif; ?>
-    </div>
     <form method="GET" class="filters-form">
-        <div class="filter-row">
-            <div class="filter-group">
-                <label for="searchInput">
-                    <i class="fas fa-search"></i> Search
-                </label>
-                <input type="text" id="searchInput" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Name, email, job...">
-            </div>
-            
-            <div class="filter-group">
-                <label for="statusFilter">
-                    <i class="fas fa-clipboard-list"></i> Status
-                </label>
-                <select id="statusFilter" name="status">
-                    <option value="">All Status</option>
-                    <?php foreach ($statuses as $status): ?>
-                        <option value="<?= htmlspecialchars($status['status']) ?>" <?= $statusFilter === $status['status'] ? 'selected' : '' ?>>
-                            <?= applicationStatusLabel($status['status']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="jobFilter">
-                    <i class="fas fa-briefcase"></i> Job
-                </label>
-                <select id="jobFilter" name="job_id">
-                    <option value="">All Jobs</option>
-                    <?php foreach ($jobs as $job): ?>
-                        <option value="<?= $job['id'] ?>" <?= $jobFilter == $job['id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($job['title']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="dateFilter">
-                    <i class="fas fa-calendar"></i> Date Range
-                </label>
-                <select id="dateFilter" name="date_range">
-                    <option value="">All Time</option>
-                    <option value="today" <?= $dateFilter === 'today' ? 'selected' : '' ?>>Today</option>
-                    <option value="week" <?= $dateFilter === 'week' ? 'selected' : '' ?>>Last 7 Days</option>
-                    <option value="month" <?= $dateFilter === 'month' ? 'selected' : '' ?>>Last 30 Days</option>
-                    <option value="quarter" <?= $dateFilter === 'quarter' ? 'selected' : '' ?>>Last 3 Months</option>
-                </select>
-            </div>
+        <div class="filter-group">
+            <label>Search</label>
+            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search by name, email, job...">
         </div>
         
-        <div class="filter-actions">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-search"></i> Apply Filters
-            </button>
+        <div class="filter-group">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All Status</option>
+                <?php foreach ($statuses as $s): ?>
+                    <option value="<?= $s['status'] ?>" <?= $statusFilter === $s['status'] ? 'selected' : '' ?>>
+                        <?= ucfirst($s['status']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
+        
+        <div class="filter-group">
+            <label>Job</label>
+            <select name="job_id">
+                <option value="">All Jobs</option>
+                <?php foreach ($jobs as $job): ?>
+                    <option value="<?= $job['id'] ?>" <?= $jobFilter == $job['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($job['title']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label>Date Range</label>
+            <select name="date_range">
+                <option value="">All Time</option>
+                <option value="today" <?= $dateFilter === 'today' ? 'selected' : '' ?>>Today</option>
+                <option value="week" <?= $dateFilter === 'week' ? 'selected' : '' ?>>Last 7 Days</option>
+                <option value="month" <?= $dateFilter === 'month' ? 'selected' : '' ?>>Last 30 Days</option>
+                <option value="quarter" <?= $dateFilter === 'quarter' ? 'selected' : '' ?>>Last 3 Months</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Filter
+        </button>
+        
+        <?php if (!empty($search) || !empty($statusFilter) || !empty($jobFilter) || !empty($dateFilter)): ?>
+            <a href="<?= appUrl('admin/applications.php') ?>" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
+        <?php endif; ?>
     </form>
 </div>
 
@@ -272,7 +244,7 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
                 <option value="approve">Approve Selected</option>
                 <option value="reject">Reject Selected</option>
                 <option value="interview">Schedule Interview</option>
-                <option value="review">Mark as Reviewed</option>
+                <option value="reviewed">Mark as Reviewed</option>
                 <option value="shortlist">Add to Shortlist</option>
                 <option value="delete">Delete Selected</option>
             </select>
@@ -313,11 +285,11 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
                             <td>
                                 <div class="applicant-cell">
                                     <div class="applicant-avatar">
-                                        <?= strtoupper(substr($app['full_name'] ?? 'A', 0, 1)) ?>
+                                        <?= strtoupper(substr($app['full_name'], 0, 1)) ?>
                                     </div>
                                     <div class="applicant-info">
-                                        <div class="applicant-name"><?= htmlspecialchars($app['full_name'] ?? 'Unknown') ?></div>
-                                        <div class="applicant-email"><?= htmlspecialchars($app['user_email'] ?? 'No email') ?></div>
+                                        <div class="applicant-name"><?= htmlspecialchars($app['full_name']) ?></div>
+                                        <div class="applicant-email"><?= htmlspecialchars($app['user_email']) ?></div>
                                     </div>
                                 </div>
                             </td>
@@ -325,10 +297,10 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
                                 <div class="job-title"><?= htmlspecialchars($app['job_title'] ?: ($app['job_position'] ?? 'General Application')) ?></div>
                             </td>
                             <td>
-                                <span class="date-cell"><?= $app['created_at'] ? date('M j, Y', strtotime($app['created_at'])) : 'N/A' ?></span>
+                                <span class="date-cell"><?= date('M j, Y', strtotime($app['created_at'])) ?></span>
                             </td>
                             <td>
-                                <span class="time-ago" data-ts="<?= htmlspecialchars($app['created_at'] ?? '') ?>"><?= $app['created_at'] ? time_elapsed_string($app['created_at']) : 'N/A' ?></span>
+                                <span class="time-ago" data-ts="<?= htmlspecialchars($app['created_at']) ?>"><?= time_elapsed_string($app['created_at']) ?></span>
                             </td>
                             <td>
                                 <?php if (applicationResumeExistsOnDisk($app['resume_path'] ?? null)): ?>
@@ -484,32 +456,6 @@ foreach (['pending', 'approved', 'rejected', 'interview', 'reviewed', 'shortlist
             <div class="loading-spinner">
                 <i class="fas fa-spinner fa-spin"></i>
                 <p>Loading resume...</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Export Options Modal -->
-<div id="exportModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Export Applications</h3>
-            <button class="modal-close" onclick="closeModal('exportModal')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <p style="margin-top: 0; color: #64748b;">Choose what you want to export.</p>
-            <div class="form-actions" style="justify-content: flex-start; flex-wrap: wrap; gap: 12px;">
-                <a href="<?= $filteredExportUrl ?>" class="btn btn-primary">
-                    <i class="fas fa-download"></i> Export Current View
-                </a>
-                <a href="<?= $allExportUrl ?>" class="btn btn-outline">
-                    <i class="fas fa-file-csv"></i> Export All Applications
-                </a>
-                <button type="button" class="btn btn-secondary" onclick="closeModal('exportModal')">
-                    Cancel
-                </button>
             </div>
         </div>
     </div>
@@ -704,111 +650,84 @@ function appApiRequest(payload) {
 function toggleSelectAllApps() {
     const selectAll = document.getElementById('selectAllApps');
     const checkboxes = document.querySelectorAll('.app-checkbox');
-    if (selectAll && checkboxes.length > 0) {
-        checkboxes.forEach(cb => cb.checked = selectAll.checked);
-    }
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
 }
 
 // View application details
 function viewApplication(appId) {
-    if (!appId) {
-        alert('Invalid application ID');
-        return;
-    }
-    
     fetch(`<?= appUrl('admin/api/application_api.php') ?>?action=get_application&id=${appId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const app = data.application || {};
-                const modalBody = document.getElementById('applicationModalBody');
-                if (modalBody) {
-                    modalBody.innerHTML = `
-                        <div class="application-detail-header">
-                            <div>
-                                <h4>${app.full_name || 'Unknown'}</h4>
-                                <p>${app.user_email || 'No email'}</p>
-                            </div>
-                            <span class="application-status status-${app.status || 'pending'}">${app.status || 'Pending'}</span>
+                const app = data.application;
+                document.getElementById('applicationModalBody').innerHTML = `
+                    <div class="application-detail-header">
+                        <div>
+                            <h4>${app.full_name}</h4>
+                            <p>${app.user_email}</p>
                         </div>
-                        <div class="application-detail-grid">
-                            <div class="detail-section">
-                                <h5>Application Information</h5>
-                                <div class="detail-row">
-                                    <label>Position:</label>
-                                    <span>${app.job_title || app.job_position || 'N/A'}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Applied:</label>
-                                    <span>${app.created_at ? new Date(app.created_at).toLocaleString() : 'N/A'}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Phone:</label>
-                                    <span>${app.phone || 'Not provided'}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Experience:</label>
-                                    <span>${app.experience || 'Not specified'}</span>
-                                </div>
+                        <span class="application-status status-${app.status}">${app.status}</span>
+                    </div>
+                    <div class="application-detail-grid">
+                        <div class="detail-section">
+                            <h5>Application Information</h5>
+                            <div class="detail-row">
+                                <label>Position:</label>
+                                <span>${app.job_title || 'N/A'}</span>
                             </div>
-                            <div class="detail-section">
-                                <h5>Skills & Portfolio</h5>
-                                <div class="detail-row">
-                                    <label>Tech Stack:</label>
-                                    <span>${app.tech_stack || 'Not specified'}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <label>Portfolio:</label>
-                                    ${app.portfolio_url ? `<a href="${app.portfolio_url}" target="_blank">${app.portfolio_url}</a>` : 'Not provided'}
-                                </div>
+                            <div class="detail-row">
+                                <label>Applied:</label>
+                                <span>${new Date(app.created_at).toLocaleString()}</span>
                             </div>
-                            <div class="detail-section">
-                                <h5>Cover Letter</h5>
-                                <p>${app.message || 'No cover letter provided'}</p>
+                            <div class="detail-row">
+                                <label>Phone:</label>
+                                <span>${app.phone || 'Not provided'}</span>
                             </div>
-                            ${app.admin_notes ? `
-                            <div class="detail-section">
-                                <h5>Admin Notes</h5>
-                                <p>${app.admin_notes}</p>
+                            <div class="detail-row">
+                                <label>Experience:</label>
+                                <span>${app.experience || 'Not specified'}</span>
                             </div>
-                            ` : ''}
-                            ${app.resume_path ? `
-                            <div class="detail-section">
-                                <h5>Resume</h5>
-                                <button class="btn btn-primary" onclick="viewResume(${app.id})">
-                                    <i class="fas fa-file-pdf"></i> View Resume
-                                </button>
-                            </div>
-                            ` : ''}
                         </div>
-                    `;
-                    openModal('applicationModal');
-                }
-            } else {
-                alert(data.message || 'Failed to load application details');
+                        <div class="detail-section">
+                            <h5>Skills & Portfolio</h5>
+                            <div class="detail-row">
+                                <label>Tech Stack:</label>
+                                <span>${app.tech_stack || 'Not specified'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Portfolio:</label>
+                                ${app.portfolio_url ? `<a href="${app.portfolio_url}" target="_blank">${app.portfolio_url}</a>` : 'Not provided'}
+                            </div>
+                        </div>
+                        <div class="detail-section">
+                            <h5>Cover Letter</h5>
+                            <p>${app.message || 'No cover letter provided'}</p>
+                        </div>
+                        ${app.admin_notes ? `
+                        <div class="detail-section">
+                            <h5>Admin Notes</h5>
+                            <p>${app.admin_notes}</p>
+                        </div>
+                        ` : ''}
+                        ${app.resume_path ? `
+                        <div class="detail-section">
+                            <h5>Resume</h5>
+                            <button class="btn btn-primary" onclick="viewResume(${app.id})">
+                                <i class="fas fa-file-pdf"></i> View Resume
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                openModal('applicationModal');
             }
-        })
-        .catch(error => {
-            console.error('Error loading application:', error);
-            alert('Failed to load application details. Please try again.');
         });
 }
 
 // View resume
 function viewResume(appId) {
-    if (!appId) {
-        alert('Invalid application ID');
-        return;
-    }
-    
-    const modalBody = document.getElementById('resumeModalBody');
-    if (!modalBody) {
-        alert('Resume modal not found');
-        return;
-    }
-    
     openModal('resumeModal');
-    modalBody.innerHTML = `
+    document.getElementById('resumeModalBody').innerHTML = `
         <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
             <p>Loading resume...</p>
@@ -820,7 +739,7 @@ function viewResume(appId) {
         .then(data => {
             if (data.success) {
                 if (data.preview_url) {
-                    modalBody.innerHTML = `
+                    document.getElementById('resumeModalBody').innerHTML = `
                         <iframe src="${data.preview_url}" width="100%" height="600px" style="border: none;"></iframe>
                         <div class="modal-footer-actions">
                             <a href="${data.download_url}" class="btn btn-primary" target="_blank">
@@ -829,12 +748,12 @@ function viewResume(appId) {
                         </div>
                     `;
                 } else {
-                    modalBody.innerHTML = `
+                    document.getElementById('resumeModalBody').innerHTML = `
                         <div class="resume-download-option">
                             <i class="fas fa-file-pdf"></i>
                             <h4>Resume Available for Download</h4>
-                            <p>File: ${data.filename || 'Unknown'}</p>
-                            <p>Size: ${data.file_size || 'Unknown'}</p>
+                            <p>File: ${data.filename}</p>
+                            <p>Size: ${data.file_size}</p>
                             <a href="${data.download_url}" class="btn btn-primary" target="_blank">
                                 <i class="fas fa-download"></i> Download Resume
                             </a>
@@ -842,7 +761,7 @@ function viewResume(appId) {
                     `;
                 }
             } else {
-                modalBody.innerHTML = `
+                document.getElementById('resumeModalBody').innerHTML = `
                     <div class="error-message">
                         <i class="fas fa-exclamation-circle"></i>
                         <p>${data.message || 'Failed to load resume'}</p>
@@ -851,10 +770,10 @@ function viewResume(appId) {
             }
         })
         .catch(error => {
-            modalBody.innerHTML = `
+            document.getElementById('resumeModalBody').innerHTML = `
                 <div class="error-message">
                     <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading resume: ${error.message || 'Unknown error'}</p>
+                    <p>Error loading resume: ${error.message}</p>
                 </div>
             `;
         });
@@ -862,123 +781,71 @@ function viewResume(appId) {
 
 // Download resume
 function downloadResume(appId) {
-    if (!appId) {
-        alert('Invalid application ID');
-        return;
-    }
     window.open(`<?= appUrl('admin/api/resume_api.php') ?>?action=view&application_id=${appId}`, '_blank');
 }
 
 // Open status modal
 function openStatusModal(appId) {
-    if (!appId) {
-        alert('Invalid application ID');
-        return;
-    }
-    
-    const applicationIdInput = document.getElementById('applicationId');
-    const statusSelect = document.querySelector('select[name="status"]');
-    const adminNotesTextarea = document.querySelector('textarea[name="admin_notes"]');
-    const interviewDateGroup = document.getElementById('interviewDateGroup');
-    const statusCsrfToken = document.getElementById('statusCsrfToken');
-    
-    if (!applicationIdInput) {
-        alert('Status modal not properly configured');
-        return;
-    }
-    
-    applicationIdInput.value = appId;
-    
-    if (statusSelect) statusSelect.value = '';
-    if (adminNotesTextarea) adminNotesTextarea.value = '';
-    if (interviewDateGroup) interviewDateGroup.style.display = 'none';
-    
+    document.getElementById('applicationId').value = appId;
+    // Don't reset form completely, just set default values
+    document.querySelector('select[name="status"]').value = '';
+    document.querySelector('textarea[name="admin_notes"]').value = '';
+    document.getElementById('interviewDateGroup').style.display = 'none';
     // Update CSRF token
-    if (statusCsrfToken) {
-        statusCsrfToken.value = window.AdminPanel && AdminPanel.config.csrfToken ? AdminPanel.config.csrfToken : '';
-    }
-    
+    document.getElementById('statusCsrfToken').value = window.AdminPanel && AdminPanel.config.csrfToken ? AdminPanel.config.csrfToken : '';
     openModal('statusModal');
 }
 
 // Handle status change
-const statusForm = document.getElementById('statusForm');
-if (statusForm) {
-    statusForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const data = Object.fromEntries(formData);
-        
-        // Validate application ID
-        if (!data.application_id || data.application_id === '') {
-            alert('Invalid application ID');
-            return;
-        }
-        
-        // Validate status is not empty
-        if (!data.status || data.status === '') {
-            alert('Please select a status');
-            return;
-        }
-        
-        appApiRequest({ action: 'update_status', ...data })
-        .then(result => {
-            if (result.success) {
-                closeModal('statusModal');
-                location.reload();
-            } else {
-                alert(result.message || 'Failed to update status');
-            }
-        })
-        .catch(error => {
-            console.error('Status update error:', error);
-            alert('Failed to update status. Please try again.');
-        });
-    });
-}
-
-// Status dropdown change
-const statusSelect = document.querySelector('select[name="status"]');
-if (statusSelect) {
-    statusSelect.addEventListener('change', function() {
-        const interviewGroup = document.getElementById('interviewDateGroup');
-        if (interviewGroup) {
-            interviewGroup.style.display = this.value === 'interview' ? 'block' : 'none';
-        }
-    });
-}
-
-// Add note
-function addNote(appId) {
-    if (!appId) {
-        alert('Invalid application ID');
+document.getElementById('statusForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    // Validate status is not empty
+    if (!data.status || data.status === '') {
+        alert('Please select a status');
         return;
     }
     
+    appApiRequest({ action: 'update_status', ...data })
+    .then(result => {
+        if (result.success) {
+            closeModal('statusModal');
+            location.reload();
+        } else {
+            alert(result.message || 'Failed to update status');
+        }
+    })
+    .catch(error => {
+        console.error('Status update error:', error);
+        alert('Failed to update status. Please try again.');
+    });
+});
+
+// Status dropdown change
+document.querySelector('select[name="status"]').addEventListener('change', function() {
+    const interviewGroup = document.getElementById('interviewDateGroup');
+    interviewGroup.style.display = this.value === 'interview' ? 'block' : 'none';
+});
+
+// Add note
+function addNote(appId) {
     const note = prompt('Enter admin note:');
-    if (note && note.trim()) {
-        appApiRequest({ action: 'add_note', application_id: appId, note: note.trim() })
+    if (note) {
+        appApiRequest({ action: 'add_note', application_id: appId, note })
         .then(data => {
             if (data.success) {
                 location.reload();
             } else {
                 alert(data.message || 'Failed to add note');
             }
-        })
-        .catch(error => {
-            console.error('Add note error:', error);
-            alert('Failed to add note. Please try again.');
         });
     }
 }
 
 // Delete application
 function deleteApplication(appId) {
-    if (!appId) {
-        alert('Invalid application ID');
-        return;
-    }
-    
     if (!confirm('Are you sure you want to delete this application?')) return;
     
     appApiRequest({ action: 'delete', application_id: appId })
@@ -988,22 +855,12 @@ function deleteApplication(appId) {
         } else {
             alert(data.message || 'Delete failed');
         }
-    })
-    .catch(error => {
-        console.error('Delete error:', error);
-        alert('Failed to delete application. Please try again.');
     });
 }
 
 // Bulk actions
 function applyBulkAction() {
-    const bulkActionSelect = document.getElementById('bulkAction');
-    if (!bulkActionSelect) {
-        alert('Bulk action dropdown not found');
-        return;
-    }
-    
-    const action = bulkActionSelect.value;
+    const action = document.getElementById('bulkAction').value;
     const selected = Array.from(document.querySelectorAll('.app-checkbox:checked')).map(cb => cb.value);
     
     if (!action) {
@@ -1016,19 +873,12 @@ function applyBulkAction() {
         return;
     }
     
-    // Validate application IDs
-    const validIds = selected.filter(id => id && !isNaN(id));
-    if (validIds.length === 0) {
-        alert('No valid application IDs selected');
-        return;
-    }
-    
-    if (action === 'delete' && !confirm(`Delete ${validIds.length} applications?`)) return;
+    if (action === 'delete' && !confirm(`Delete ${selected.length} applications?`)) return;
     
     const actionText = action === 'delete' ? 'delete' : 'update status for';
-    if (!confirm(`Are you sure you want to ${actionText} ${validIds.length} application(s)?`)) return;
+    if (!confirm(`Are you sure you want to ${actionText} ${selected.length} application(s)?`)) return;
     
-    appApiRequest({ action: `bulk_${action}`, application_ids: validIds })
+    appApiRequest({ action: `bulk_${action}`, application_ids: selected })
     .then(data => {
         if (data.success) {
             const message = data.message || 'Bulk action completed successfully';

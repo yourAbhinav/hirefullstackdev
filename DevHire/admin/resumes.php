@@ -310,25 +310,52 @@ function resetFilters() {
 }
 
 function viewResume(applicationId) {
-    // Direct preview/download without tokens
-    const downloadUrl = 'api/resume_download.php?action=download_direct&application_id=' + applicationId;
-    window.open(downloadUrl, '_blank');
+    // Get download token first
+    fetch('api/resume_api.php?action=view&application_id=' + applicationId, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Open preview in new tab for PDF
+            if (data.preview_url) {
+                window.open(data.preview_url, '_blank');
+            } else {
+                // For non-PDF files, download directly
+                window.open(data.download_url, '_blank');
+            }
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to load resume');
+    });
 }
 
 function downloadResume(applicationId) {
-    // Direct download without tokens
-    const downloadUrl = 'api/resume_download.php?action=download_direct&application_id=' + applicationId;
-    
-    // Use hidden iframe to download
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = downloadUrl;
-    document.body.appendChild(iframe);
-    
-    // Remove iframe after download starts
-    setTimeout(() => {
-        document.body.removeChild(iframe);
-    }, 5000);
+    fetch('api/resume_api.php?action=view&application_id=' + applicationId, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.open(data.download_url, '_blank');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to download resume');
+    });
 }
 
 function viewApplication(applicationId) {

@@ -1,8 +1,10 @@
 <?php
 require_once '../config/db.php';
 require_once '../includes/admin_helpers.php';
+require_once '../config/site.php';
 
 requireAdminLogin();
+$siteName = SITE_COMPANY_NAME;
 
 $admin = getCurrentAdmin($conn);
 if ($admin === null) {
@@ -13,11 +15,6 @@ if ($admin === null) {
 
 $unreadCount = getUnreadNotificationCount($conn, $admin['id']);
 $notifications = getAdminNotifications($conn, $admin['id'], 5);
-$siteName = getSiteName();
-$currentPageTitle = str_replace('DevHire', $siteName, $page_title ?? 'Admin Dashboard');
-if (!str_contains($currentPageTitle, $siteName)) {
-    $currentPageTitle .= ' - ' . $siteName;
-}
 ?>
 
 <!DOCTYPE html>
@@ -25,7 +22,7 @@ if (!str_contains($currentPageTitle, $siteName)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($currentPageTitle) ?></title>
+    <title><?= htmlspecialchars($page_title ?? 'Admin Dashboard') ?> - <?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.css">
     <link rel="stylesheet" href="<?= appUrl('admin/assets/css/admin-panel.css') ?>">
@@ -37,7 +34,7 @@ if (!str_contains($currentPageTitle, $siteName)) {
             <div class="sidebar-header">
                 <a href="<?= appUrl('admin/dashboard.php') ?>" class="logo">
                     <i class="fas fa-shield-alt"></i>
-                    <?= htmlspecialchars($siteName) ?> Admin
+                    <?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?> Admin
                 </a>
             </div>
             

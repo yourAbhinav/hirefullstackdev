@@ -19,10 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt = $conn->prepare("INSERT INTO platform_settings (setting_key, setting_value) VALUES ('site_name', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
         $stmt->bind_param('ss', $siteName, $siteName);
         $stmt->execute();
-        $siteNameCache = json_encode(['site_name' => $siteName], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if ($siteNameCache !== false) {
-            @file_put_contents(__DIR__ . '/../config/site-settings.cache.json', $siteNameCache);
-        }
+
+        $stmt = $conn->prepare("INSERT INTO platform_settings (setting_key, setting_value) VALUES ('site_title', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+        $stmt->bind_param('ss', $siteName, $siteName);
+        $stmt->execute();
+
+        refreshSiteNameCache($siteName);
         
         $stmt = $conn->prepare("INSERT INTO platform_settings (setting_key, setting_value) VALUES ('site_description', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
         $stmt->bind_param('ss', $siteDescription, $siteDescription);
@@ -115,6 +117,14 @@ function getSetting($conn, $key, $default = '') {
     $stmt->execute();
     $result = $stmt->get_result()->fetch_assoc();
     $stmt->close();
+
+    if (($result['setting_value'] ?? '') === '' && $key === 'site_name') {
+        $stmt = $conn->prepare("SELECT setting_value FROM platform_settings WHERE setting_key = 'site_title' LIMIT 1");
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+    }
+
     return $result['setting_value'] ?? $default;
 }
 
@@ -332,140 +342,19 @@ $settings = [
     </div>
 
 <script>
-// Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-        // Remove active class from all tabs
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.settings-content').forEach(c => c.style.display = 'none');
-        
-        // Add active class to clicked tab
+
         this.classList.add('active');
         const tabId = this.dataset.tab + '-tab';
-        document.getElementById(tabId).style.display = 'block';
+        const tabContent = document.getElementById(tabId);
+        if (tabContent) {
+            tabContent.style.display = 'block';
+        }
     });
 });
 </script>
-
-<style>
-.settings-tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 30px;
-    border-bottom: 2px solid #e5e7eb;
-    padding-bottom: 10px;
-}
-
-.tab-btn {
-    padding: 12px 24px;
-    background: none;
-    border: none;
-    color: #6b7280;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.tab-btn:hover {
-    color: #4F46E5;
-}
-
-.tab-btn.active {
-    color: #4F46E5;
-    border-bottom: 2px solid #4F46E5;
-    margin-bottom: -12px;
-}
-
-.settings-content {
-    background: white;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.settings-section {
-    max-width: 600px;
-}
-
-.settings-header {
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.settings-header h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1a1a2e;
-    margin-bottom: 5px;
-}
-
-.settings-header p {
-    color: #6b7280;
-    font-size: 14px;
-}
-
-.form-group {
-    margin-bottom: 25px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: #374151;
-    font-size: 14px;
-}
-
-.form-group small {
-    display: block;
-    margin-top: 5px;
-    color: #6b7280;
-    font-size: 13px;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-}
-
-.checkbox-label span {
-    font-weight: 500;
-    color: #374151;
-}
-
-.form-actions {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
-}
-
-.alert {
-    padding: 15px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.alert-success {
-    background: #D1FAE5;
-    color: #059669;
-    border: 1px solid #10B981;
-}
-</style>
 
 <?php require_once 'includes/admin_footer.php'; ?>

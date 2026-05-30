@@ -167,10 +167,6 @@ $recentAdminActivity = $conn
              ORDER BY al.created_at DESC
              LIMIT 6")
     ->fetch_all(MYSQLI_ASSOC) ?: [];
-
-$pendingAdminRequests = $conn
-    ->query("SELECT id, full_name, email, request_note, requested_ip, token_expires_at, created_at, approval_token FROM admin_access_requests WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10")
-    ->fetch_all(MYSQLI_ASSOC) ?: [];
 ?>
 
 <div class="page-header">
@@ -198,65 +194,6 @@ $pendingAdminRequests = $conn
             <?= htmlspecialchars($error) ?>
         </div>
     <?php endif; ?>
-
-<!-- Pending Admin Access Requests -->
-<div class="chart-card" style="margin-bottom: 22px;">
-    <div class="card-header">
-        <h3>Pending Admin Access Requests (<?= number_format(count($pendingAdminRequests)) ?>)</h3>
-    </div>
-    <div class="card-body">
-        <?php if (empty($pendingAdminRequests)): ?>
-            <div class="empty-state">
-                <i class="fas fa-user-shield"></i>
-                <p>No pending admin access requests</p>
-            </div>
-        <?php else: ?>
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Requested</th>
-                            <th>Expires</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($pendingAdminRequests as $request): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($request['full_name']) ?></td>
-                                <td><?= htmlspecialchars($request['email']) ?></td>
-                                <td><span class="time-ago" data-ts="<?= htmlspecialchars($request['created_at']) ?>"><?= time_elapsed_string($request['created_at']) ?></span></td>
-                                <td><?= htmlspecialchars($request['token_expires_at']) ?></td>
-                                <td>
-                                    <div class="action-buttons" style="flex-wrap: wrap; gap: 8px;">
-                                        <form method="POST" action="<?= appUrl('admin/approve_admin_access.php') ?>" style="display:inline; margin:0;">
-                                            <?= csrfField() ?>
-                                            <input type="hidden" name="token" value="<?= htmlspecialchars($request['approval_token']) ?>">
-                                            <input type="hidden" name="action" value="approve">
-                                            <button type="submit" class="btn btn-sm btn-primary" onclick="return confirm('Approve this admin access request?')">
-                                                Approve
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="<?= appUrl('admin/approve_admin_access.php') ?>" style="display:inline; margin:0;">
-                                            <?= csrfField() ?>
-                                            <input type="hidden" name="token" value="<?= htmlspecialchars($request['approval_token']) ?>">
-                                            <input type="hidden" name="action" value="reject">
-                                            <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('Reject this admin access request?')">
-                                                Reject
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
-    </div>
-</div>
 
 <!-- Admin Statistics -->
 <div class="stats-grid">

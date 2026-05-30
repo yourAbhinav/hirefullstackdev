@@ -2,11 +2,13 @@
 require_once '../includes/helpers.php';
 startSecureSession();
 
-$page_title = 'Login - DevHire';
+$siteName = getSiteName();
+
+$page_title = 'Login - ' . $siteName;
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
-if (isPublicUserLoggedIn()) {
+if (isLoggedIn()) {
     header('Location: ' . appUrl(roleDashboardPath()));
     exit;
 }
@@ -30,7 +32,7 @@ include '../includes/navbar.php';
                     <span class="auth-eyebrow-icon"><i class="fas fa-shield-alt"></i></span>
                     <span>Secure Authentication</span>
                 </div>
-                <h1 class="auth-headline">Sign in to DevHire</h1>
+                <h1 class="auth-headline">Sign in to <?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?></h1>
                 <p class="auth-subheadline">Access your dashboard to manage applications, discover opportunities, and connect with top companies.</p>
             </div>
 
@@ -116,9 +118,6 @@ include '../includes/navbar.php';
                 Continue with Google
             </button>
 
-            <p class="auth-note">
-                <a href="<?= appUrl('admin/login.php') ?>">Admin login</a>
-            </p>
         </div>
 
     </div>

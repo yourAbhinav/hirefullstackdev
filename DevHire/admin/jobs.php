@@ -324,6 +324,7 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
         </div>
         <div class="modal-body">
             <form id="jobForm">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="job_id" id="jobId">
                 
                 <div class="form-row">
@@ -588,6 +589,8 @@ function toggleSelectAllJobs() {
     checkboxes.forEach(cb => cb.checked = selectAll.checked);
 }
 
+const jobApiCsrfToken = document.querySelector('#jobForm input[name="csrf_token"]').value;
+
 // Open create job modal
 function openJobModal() {
     document.getElementById('jobForm').reset();
@@ -712,7 +715,7 @@ function toggleFeatured(jobId, isFeatured) {
     fetch('<?= appUrl('admin/api/job_api.php') ?>', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'toggle_featured', job_id: jobId, featured: isFeatured })
+        body: JSON.stringify({ action: 'toggle_featured', job_id: jobId, featured: isFeatured, csrf_token: jobApiCsrfToken })
     })
     .then(response => response.json())
     .then(data => {
@@ -731,7 +734,7 @@ function toggleStatus(jobId, action) {
     fetch('<?= appUrl('admin/api/job_api.php') ?>', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action === 'activate' ? 'activate' : 'close', job_id: jobId })
+        body: JSON.stringify({ action: action === 'activate' ? 'activate' : 'close', job_id: jobId, csrf_token: jobApiCsrfToken })
     })
     .then(response => response.json())
     .then(data => {
@@ -750,7 +753,7 @@ function deleteJob(jobId) {
     fetch('<?= appUrl('admin/api/job_api.php') ?>', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', job_id: jobId })
+        body: JSON.stringify({ action: 'delete', job_id: jobId, csrf_token: jobApiCsrfToken })
     })
     .then(response => response.json())
     .then(data => {
@@ -782,7 +785,7 @@ function applyBulkAction() {
     fetch('<?= appUrl('admin/api/job_api.php') ?>', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: `bulk_${action}`, job_ids: selected })
+        body: JSON.stringify({ action: `bulk_${action}`, job_ids: selected, csrf_token: jobApiCsrfToken })
     })
     .then(response => response.json())
     .then(data => {
@@ -803,6 +806,7 @@ document.getElementById('jobForm').addEventListener('submit', function(e) {
     
     data.featured = document.getElementById('featured').checked ? 1 : 0;
     data.action = jobId ? 'update' : 'create';
+    data.status = data.status || 'active';
     
     fetch('<?= appUrl('admin/api/job_api.php') ?>', {
         method: 'POST',

@@ -4,11 +4,12 @@ require_once __DIR__ . '/../config/site.php';
 
 
 // SEO Configuration
+$siteName = SITE_COMPANY_NAME;
 $currentPageTitle = isset($page_title) ? $page_title : SEO_DEFAULT_TITLE;
-$currentPageTitle = str_replace('DevHire', SITE_COMPANY_NAME, $currentPageTitle);
-if (!str_contains($currentPageTitle, SITE_COMPANY_NAME)) {
-	$currentPageTitle .= ' - ' . SITE_COMPANY_NAME;
-}
+$currentPageTitle = str_replace('DevHire', $siteName, $currentPageTitle);
+$currentPageTitle = str_replace('Devhire', $siteName, $currentPageTitle);
+$currentPageTitle = str_replace('DevHire Admin', $siteName . ' Admin', $currentPageTitle);
+$currentPageTitle = str_replace('DevHire -', $siteName . ' -', $currentPageTitle);
 $currentDescription = isset($page_description) ? $page_description : SEO_DEFAULT_DESCRIPTION;
 
 // Detect scheme for canonical URL
@@ -37,7 +38,7 @@ content="<?= htmlspecialchars($currentDescription, ENT_QUOTES, 'UTF-8') ?>">
 
 <meta
 name="author"
-content="<?= SITE_COMPANY_NAME ?>">
+content="<?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?>">
 
 <title><?= htmlspecialchars($currentPageTitle, ENT_QUOTES, 'UTF-8') ?></title>
 
@@ -52,7 +53,7 @@ content="<?= SITE_COMPANY_NAME ?>">
 <?php if ($currentImage !== ''): ?>
 <meta property="og:image" content="<?= htmlspecialchars($currentImage, ENT_QUOTES, 'UTF-8') ?>">
 <?php endif; ?>
-<meta property="og:site_name" content="<?= SITE_COMPANY_NAME ?>">
+<meta property="og:site_name" content="<?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?>">
 
 <!-- Twitter Cards -->
 <?php if ($currentImage !== ''): ?>

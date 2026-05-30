@@ -4,8 +4,6 @@ if (ob_get_level() === 0) {
     ob_start();
 }
 
-require_once 'includes/helpers.php';
-require_once 'config/site.php';
 require_once 'config/db.php';
 
 $page_title = "DevHire - Hire Top Full Stack Developers";
@@ -193,7 +191,7 @@ include 'includes/navbar.php';
                 <p class="quick-apply-lock-copy">
                     Guest users cannot submit applications from the homepage. Developers should sign in to keep every application linked to a valid account.
                 </p>
-                <?php if (isPublicUserLoggedIn() && !isDeveloper()): ?>
+                <?php if (isLoggedIn() && !isDeveloper()): ?>
                     <p class="quick-apply-lock-note">Your current role is <?= escape(ucfirst($currentRole ?: 'user')) ?>, so application submission is disabled for this account.</p>
                     <div class="quick-apply-lock-actions">
                         <a href="<?= appUrl(roleDashboardPath()) ?>" class="btn-primary">Go to Dashboard</a>

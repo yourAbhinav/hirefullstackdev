@@ -1,8 +1,4 @@
 <?php
-// Start session immediately before any other operations
-require_once '../../includes/helpers.php';
-startSecureSession();
-
 require_once '../../config/db.php';
 require_once '../../includes/admin_helpers.php';
 
@@ -60,13 +56,33 @@ switch ($action) {
         $fileSizeFormatted = formatFileSize($fileSize);
         $fileExtension = strtolower($fileInfo['extension']);
         
-        // Return file info for direct download without tokens
+        // Generate secure download URL (token-based)
+        $downloadToken = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 hour expiration
+        
+        // Store token in session
+        $_SESSION['resume_download_tokens'][$downloadToken] = [
+            'application_id' => $applicationId,
+            'expires_at' => $expiresAt,
+            'admin_id' => $admin['id']
+        ];
+        
+        $downloadUrl = appUrl('admin/api/resume_download.php?token=' . $downloadToken);
+        
+        // Determine if we can provide preview
+        $previewUrl = null;
+        if (in_array($fileExtension, ['pdf'])) {
+            // For PDF, we can embed directly
+            $previewUrl = $downloadUrl . '&preview=1';
+        }
+        
         echo json_encode([
             'success' => true,
             'filename' => $fileInfo['basename'],
             'file_size' => $fileSizeFormatted,
             'file_extension' => $fileExtension,
-            'application_id' => $applicationId
+            'download_url' => $downloadUrl,
+            'preview_url' => $previewUrl
         ]);
         break;
         

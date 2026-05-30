@@ -3,7 +3,8 @@ require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/../config/site.php';
 
 startSecureSession();
-$isAuthenticated = isPublicUserLoggedIn();
+$siteName = SITE_COMPANY_NAME;
+$isAuthenticated = isLoggedIn();
 $isDeveloperUser = isDeveloper();
 ?>
 
@@ -19,7 +20,7 @@ $isDeveloperUser = isDeveloper();
 
 <div class="footer-logo">
 <span class="logo-icon">&lt;/&gt;</span>
-<span><?= htmlspecialchars(SITE_COMPANY_NAME) ?></span>
+<span><?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?></span>
 </div>
 
 <p class="footer-description">
@@ -193,7 +194,7 @@ San Francisco, CA
 <div class="footer-bottom-left">
 
 <p>
-&copy; 2026 <?= htmlspecialchars(SITE_COMPANY_NAME) ?>. All rights reserved.
+&copy; 2026 <?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?>. All rights reserved.
 </p>
 
 </div>

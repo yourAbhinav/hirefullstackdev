@@ -1,8 +1,4 @@
 <?php
-// Start session immediately before any other operations
-require_once '../../includes/helpers.php';
-startSecureSession();
-
 require_once '../../config/db.php';
 require_once '../../includes/admin_helpers.php';
 
@@ -18,78 +14,13 @@ if ($admin === null) {
     exit;
 }
 
-$action = $_GET['action'] ?? '';
 $token = $_GET['token'] ?? '';
 $preview = isset($_GET['preview']) && $_GET['preview'] === '1';
 
-// Handle direct download without tokens (more reliable)
-if ($action === 'download_direct') {
-    $applicationId = (int) ($_GET['application_id'] ?? 0);
-    
-    if ($applicationId <= 0) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Invalid application ID']);
-        exit;
-    }
-    
-    // Get application details
-    $stmt = $conn->prepare('SELECT id, full_name, resume_path FROM applications WHERE id = ? LIMIT 1');
-    $stmt->bind_param('i', $applicationId);
-    $stmt->execute();
-    $application = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    
-    if (!$application || empty($application['resume_path'])) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Resume not found']);
-        exit;
-    }
-    
-    // Log download
-    logAdminAction($conn, $admin['id'], 'download_resume', 'application', $applicationId, 
-        null, ['applicant' => $application['full_name'], 'direct' => true]);
-    
-    // Resolve the resume path
-    $resumePath = resolveApplicationResumePath($application['resume_path']);
-    if ($resumePath === null) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'message' => 'Invalid resume path']);
-        exit;
-    }
-    
-    if (!file_exists($resumePath)) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'File not found on server']);
-        exit;
-    }
-    
-    $fileInfo = pathinfo($resumePath);
-    $mimeType = getMimeType($resumePath);
-    $fileName = $fileInfo['basename'];
-    
-    // Set headers for file download
-    header('Content-Type: ' . $mimeType);
-    header('Content-Disposition: attachment; filename="' . $fileName . '"');
-    header('Content-Length: ' . filesize($resumePath));
-    header('Cache-Control: private, max-age=3600');
-    header('Pragma: private');
-    header('Expires: ' . date('D, d M Y H:i:s', time() + 3600) . ' GMT');
-    
-    // Output file
-    readfile($resumePath);
-    exit;
-}
-
-// Legacy token-based download
 if (empty($token)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid token']);
     exit;
-}
-
-// Initialize session array if not exists
-if (!isset($_SESSION['resume_download_tokens'])) {
-    $_SESSION['resume_download_tokens'] = [];
 }
 
 // Validate token from session

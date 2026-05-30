@@ -2,13 +2,15 @@
 require_once '../config/db.php';
 require_once '../includes/admin_helpers.php';
 
+$siteName = getSiteName();
+
 // Redirect if already logged in as admin
 if (isAdminLoggedIn()) {
     header('Location: ' . appUrl('admin/dashboard.php'));
     exit;
 }
 
-$page_title = 'Admin Login - ' . getSiteName();
+$page_title = 'Admin Login - ' . $siteName;
 $loginError = $_SESSION['admin_error'] ?? '';
 $googleError = $_SESSION['google_error'] ?? '';
 $requestSuccess = '';
@@ -18,11 +20,11 @@ unset($_SESSION['google_error']);
 // Handle secure admin access request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') === 'request_admin_access')) {
     if (trim((string) ($_POST['website'] ?? '')) !== '') {
-        $requestSuccess = 'Your request was sent. An existing administrator must approve it before you can sign in.';
+        $requestSuccess = 'Your request was sent. A super admin must approve it before you can sign in.';
     } elseif (!verifyCsrf($_POST['csrf_token'] ?? null)) {
-        $loginError = 'Security check failed. Please refresh and try again.';
+            $loginError = 'Security check failed. Please refresh and try again.';
     } elseif ((string) ($_POST['request_password'] ?? '') !== (string) ($_POST['request_password_confirm'] ?? '')) {
-        $loginError = 'Password confirmation does not match.';
+            $loginError = 'Password confirmation does not match.';
     } else {
         $requestResult = submitAdminAccessRequest(
             $conn,
@@ -35,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') === 
         if ($requestResult['success']) {
             $requestSuccess = $requestResult['message'];
         } else {
-            $loginError = $requestResult['message'];
+                $loginError = $requestResult['message'];
         }
     }
 }
@@ -453,7 +455,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 
 <body>
     <div class="login-container">
         <div class="login-left">
-            <h1>Admin Dashboard</h1>
+            <h1><?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?> Admin Dashboard</h1>
             <p>Complete control over your hiring platform. Manage users, applications, jobs, and platform settings from one powerful interface.</p>
             
             <div class="stats">
@@ -473,7 +475,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 
         </div>
         
         <div class="login-right">
-            <h2>Admin Login</h2>
+            <h2><?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?> Admin Login</h2>
             <p>Sign in to access your admin dashboard</p>
             
             <?php if ($loginError): ?>
@@ -541,7 +543,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 
         <div class="request-modal-card">
             <button type="button" class="request-modal-close" id="closeRequestAdminModal" aria-label="Close">&times;</button>
             <h3>Request Admin Access</h3>
-            <p>Submit a secure request. An existing administrator will receive an email to approve your account.</p>
+            <p>Submit a secure request. A super admin will receive an email to approve or reject your account.</p>
             <form method="POST" action="">
                 <input type="hidden" name="form_action" value="request_admin_access">
                 <?= csrfField() ?>

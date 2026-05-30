@@ -5,12 +5,19 @@ require_once '../includes/admin_helpers.php';
 startSecureSession();
 
 $token = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
-$pageTitle = 'Approve Admin Access - ' . getSiteName();
+$pageTitle = 'Approve Admin Access - DevHire';
 $message = '';
 $isError = false;
 $request = $token !== '' ? getAdminAccessRequestByToken($conn, $token) : null;
+$reviewer = isAdminLoggedIn() ? getCurrentAdmin($conn) : null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token !== '') {
+if ($reviewer !== null && ($reviewer['role'] ?? '') !== 'super_admin') {
+    $message = 'Only a super admin can review admin access requests.';
+    $isError = true;
+    $request = null;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token !== '' && ($reviewer === null || ($reviewer['role'] ?? '') === 'super_admin')) {
     if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
         $message = 'Security check failed. Refresh the page and try again.';
         $isError = true;

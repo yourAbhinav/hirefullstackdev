@@ -659,9 +659,9 @@ function ensureAdminAccessRequestTable(mysqli $conn): bool
 /**
  * Active admin emails that can approve new admin requests.
  */
-function getAdminApproverAccounts(mysqli $conn): array
+function getAdminApproverEmails(mysqli $conn): array
 {
-    $stmt = $conn->prepare("SELECT id, email FROM admin_accounts WHERE status = 'active' AND role IN ('super_admin', 'admin') ORDER BY role = 'super_admin' DESC, id ASC");
+    $stmt = $conn->prepare("SELECT email FROM admin_accounts WHERE status = 'active' AND role = 'super_admin' ORDER BY id ASC");
     if (!$stmt) {
         return [];
     }
@@ -670,26 +670,9 @@ function getAdminApproverAccounts(mysqli $conn): array
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
     $stmt->close();
 
-    $accounts = [];
+    $emails = [];
     foreach ($rows as $row) {
         $email = normalizeEmail((string) ($row['email'] ?? ''));
-        $adminId = (int) ($row['id'] ?? 0);
-        if ($adminId > 0 && $email !== '' && validateEmail($email)) {
-            $accounts[] = ['id' => $adminId, 'email' => $email];
-        }
-    }
-
-    return $accounts;
-}
-
-/**
- * Active admin emails that can approve new admin requests.
- */
-function getAdminApproverEmails(mysqli $conn): array
-{
-    $emails = [];
-    foreach (getAdminApproverAccounts($conn) as $account) {
-        $email = (string) ($account['email'] ?? '');
         if ($email !== '' && validateEmail($email)) {
             $emails[] = $email;
         }
@@ -755,7 +738,7 @@ function submitAdminAccessRequest(mysqli $conn, string $fullName, string $email,
 
     $approvers = getAdminApproverEmails($conn);
     if ($approvers === []) {
-        return ['success' => false, 'message' => 'No active administrators are available to review requests yet.'];
+        return ['success' => false, 'message' => 'No active super admins are available to review requests yet.'];
     }
 
     $passwordHash = password_hash($password, PASSWORD_DEFAULT);
@@ -776,39 +759,24 @@ function submitAdminAccessRequest(mysqli $conn, string $fullName, string $email,
     $insert->close();
 
     $approvalUrl = appUrl('admin/approve_admin_access.php?token=' . urlencode($approvalToken));
-    $subject = 'DevHire Admin Access Approval Required';
+    $subject = 'DevHire Super Admin Approval Required';
     $body = "A new admin access request was submitted.\n\n"
         . "Name: {$fullName}\n"
         . "Email: {$email}\n"
         . "IP: {$requestedIp}\n"
         . "Note: " . ($note !== '' ? $note : '(none)') . "\n\n"
         . "Review and approve securely:\n{$approvalUrl}\n\n"
-        . "This link expires in 72 hours.";
+        . "This link expires in 72 hours.\n\n"
+        . "Only a super admin should review this request.";
 
     $headers = 'From: DevHire Security <noreply@devhire.local>' . "\r\n" . 'Content-Type: text/plain; charset=UTF-8';
-    foreach (getAdminApproverAccounts($conn) as $approver) {
-        $approverId = (int) ($approver['id'] ?? 0);
-        $approverEmail = (string) ($approver['email'] ?? '');
-
-        if ($approverId > 0) {
-            createAdminNotification(
-                $conn,
-                $approverId,
-                'warning',
-                'Admin Access Request Pending',
-                "{$fullName} ({$email}) requested admin access. Review the request in admin management.",
-                $approvalUrl
-            );
-        }
-
-        if ($approverEmail !== '') {
-            @mail($approverEmail, $subject, $body, $headers);
-        }
+    foreach ($approvers as $approverEmail) {
+        @mail($approverEmail, $subject, $body, $headers);
     }
 
     return [
         'success' => true,
-        'message' => 'Your request was sent. An existing administrator must approve it before you can sign in.',
+        'message' => 'Your request was sent. A super admin must approve it before you can sign in.',
     ];
 }
 

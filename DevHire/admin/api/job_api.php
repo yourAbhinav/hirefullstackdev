@@ -8,6 +8,11 @@ header('Content-Type: application/json');
 requireAdminLogin();
 requireAdminPermission($conn, 'view_jobs');
 
+$jsonPayload = json_decode((string) file_get_contents('php://input'), true);
+if (is_array($jsonPayload)) {
+    $_POST = array_merge($_POST, $jsonPayload);
+}
+
 function requireApiCsrf(): void {
     $token = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
     if (!verifyCsrf(is_string($token) ? $token : null)) {
@@ -68,7 +73,7 @@ switch ($action) {
         $description = trim($_POST['description'] ?? '');
         $requirements = trim($_POST['requirements'] ?? '');
         $benefits = trim($_POST['benefits'] ?? '');
-        $status = $_POST['status'] ?? 'draft';
+        $status = $_POST['status'] ?? 'active';
         $featured = isset($_POST['featured']) ? 1 : 0;
         
         if (empty($title) || $companyId <= 0 || empty($location) || empty($description)) {
