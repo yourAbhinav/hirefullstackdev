@@ -38,13 +38,19 @@ $roleHome = roleDashboardPath($currentRole);
                     <a href="<?= appUrl('pages/developers.php') ?>" class="nav-link">Developers</a>
                 </li>
                 <li>
-                    <a href="<?= appUrl('pages/how-it-works.php') ?>" class="nav-link">How It Works</a>
+                    <a href="<?= appUrl('pages/about.php') ?>" class="nav-link">About</a>
+                </li>
+                <li>
+                    <a href="<?= appUrl('pages/careers.php') ?>" class="nav-link">Careers</a>
+                </li>
+                <li>
+                    <a href="<?= appUrl('pages/technologies.php') ?>" class="nav-link">Technologies</a>
+                </li>
+                <li>
+                    <a href="<?= appUrl('pages/faq.php') ?>" class="nav-link">FAQ</a>
                 </li>
                 <li>
                     <a href="<?= appUrl('pages/pricing.php') ?>" class="nav-link">Pricing</a>
-                </li>
-                <li>
-                    <a href="<?= appUrl('pages/testimonials.php') ?>" class="nav-link">Testimonials</a>
                 </li>
                 <li>
                     <a href="<?= appUrl('pages/contact.php') ?>" class="nav-link">Contact</a>
@@ -90,6 +96,10 @@ $roleHome = roleDashboardPath($currentRole);
 <!-- Mobile Menu Overlay -->
 <div class="mobile-menu-overlay" id="mobileMenuOverlay">
     <div class="mobile-menu-content">
+        <a href="<?= appUrl('index.php') ?>" class="mobile-menu-link">Home</a>
+        <a href="<?= appUrl('pages/jobs.php') ?>" class="mobile-menu-link">Jobs</a>
+        <a href="<?= appUrl('pages/pricing.php') ?>" class="mobile-menu-link">Pricing</a>
+        <a href="<?= appUrl('pages/contact.php') ?>" class="mobile-menu-link">Contact</a>
         <?php if ($isAuthenticated): ?>
             <?php if (isAdmin()): ?>
                 <a href="<?= appUrl('admin/dashboard.php') ?>" class="mobile-menu-link">Admin Dashboard</a>

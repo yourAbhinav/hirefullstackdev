@@ -5,6 +5,7 @@ require_once __DIR__ . '/middleware.php';
 requireCompany();
 
 $page_title = 'Create Job - DevHire';
+$page_description = 'Create and publish developer jobs from your company dashboard with a polished, guided job editor.';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
@@ -117,16 +118,193 @@ include '../includes/header.php';
 include '../includes/navbar.php';
 ?>
 
+<style>
+	.company-job-shell {
+		width: min(1240px, calc(100% - 32px));
+		margin: 0 auto;
+		padding: 0 0 72px;
+	}
+
+	.company-job-layout {
+		display: grid;
+		grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+		gap: 22px;
+		align-items: start;
+	}
+
+	.company-job-rail,
+	.company-job-card {
+		border-radius: 24px;
+		background: rgba(255, 255, 255, 0.9);
+		border: 1px solid rgba(148, 163, 184, 0.22);
+		box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+		backdrop-filter: blur(10px);
+	}
+
+	.company-job-rail {
+		padding: 24px;
+		position: sticky;
+		top: 110px;
+	}
+
+	.company-job-card {
+		padding: 24px;
+	}
+
+	.company-job-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 12px;
+		border-radius: 999px;
+		background: #eff6ff;
+		color: #1d4ed8;
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		margin-bottom: 16px;
+	}
+
+	.company-job-rail h2 {
+		color: #0f172a;
+		margin: 0 0 10px;
+		font-size: 1.8rem;
+		letter-spacing: -0.03em;
+	}
+
+	.company-job-rail p,
+	.company-job-rail li,
+	.company-job-rail .rail-note {
+		color: #475569;
+		line-height: 1.7;
+	}
+
+	.rail-metrics {
+		display: grid;
+		gap: 12px;
+		margin: 20px 0;
+	}
+
+	.rail-metric {
+		padding: 14px 16px;
+		border-radius: 16px;
+		background: linear-gradient(135deg, #f8fafc, #eef2ff);
+		border: 1px solid rgba(79, 70, 229, 0.08);
+	}
+
+	.rail-metric strong {
+		display: block;
+		color: #0f172a;
+		font-size: 1rem;
+		margin-bottom: 4px;
+	}
+
+	.rail-metric span {
+		color: #64748b;
+		font-size: 0.92rem;
+	}
+
+	.rail-list {
+		margin: 18px 0 0;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: 10px;
+	}
+
+	.rail-list li {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+	}
+
+	.rail-list i {
+		color: #4f46e5;
+		margin-top: 4px;
+	}
+
+	.company-job-form .form-grid-two {
+		margin-bottom: 18px;
+	}
+
+	.company-job-form .form-group label {
+		font-weight: 700;
+		color: #0f172a;
+	}
+
+	.company-job-form input,
+	.company-job-form select,
+	.company-job-form textarea {
+		border-radius: 14px;
+		border: 1px solid #cbd5e1;
+		background: #fff;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+	}
+
+	.company-job-form input:focus,
+	.company-job-form select:focus,
+	.company-job-form textarea:focus {
+		outline: none;
+		border-color: #4f46e5;
+		box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+	}
+
+	.company-job-actions {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 6px;
+	}
+
+	@media (max-width: 960px) {
+		.company-job-layout {
+			grid-template-columns: 1fr;
+		}
+
+		.company-job-rail {
+			position: static;
+		}
+	}
+</style>
+
 <section class="page-hero">
 	<div class="page-hero-inner">
 		<span class="eyebrow">Company Panel</span>
 		<h1><?= $jobId > 0 ? 'Edit Job' : 'Create Job' ?></h1>
-		<p class="quick-apply-subtitle">Publish a role and manage it from your company workspace.</p>
+		<p class="quick-apply-subtitle">Publish a role that is easier to discover, easier to trust, and easier to apply to.</p>
 	</div>
 </section>
 
-<section class="featured-jobs company-create-job-section">
-	<div class="apply-layout-single">
+<section class="company-job-shell">
+	<div class="company-job-layout">
+		<aside class="company-job-rail">
+			<span class="company-job-kicker">Job publishing guide</span>
+			<h2>Build a stronger job post</h2>
+			<p class="rail-note">Use a precise title, a clear stack, and a concise description that explains who the role is for and what the developer will ship.</p>
+
+			<div class="rail-metrics">
+				<div class="rail-metric">
+					<strong>Search visibility</strong>
+					<span>Job titles and stack terms help candidates discover the role.</span>
+				</div>
+				<div class="rail-metric">
+					<strong>Candidate trust</strong>
+					<span>Clear requirements improve application quality and reduce drop-off.</span>
+				</div>
+				<div class="rail-metric">
+					<strong>Hiring speed</strong>
+					<span>Well-structured roles get reviewed and approved faster.</span>
+				</div>
+			</div>
+
+			<ul class="rail-list">
+				<li><i class="fas fa-check-circle"></i><span>Use the technologies the team actually needs.</span></li>
+				<li><i class="fas fa-check-circle"></i><span>Describe the outcomes, not only the responsibilities.</span></li>
+				<li><i class="fas fa-check-circle"></i><span>Keep the salary range and work mode explicit.</span></li>
+			</ul>
+		</aside>
+
+		<div class="company-job-card">
 		<?php if (!empty($successMessage = getFlash('success'))): ?>
 			<div class="notice notice-success"><i class="fas fa-check-circle"></i><div><strong>Success</strong><p><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></p></div></div>
 		<?php endif; ?>
@@ -135,7 +313,7 @@ include '../includes/navbar.php';
 			<div class="notice notice-error"><i class="fas fa-exclamation-circle"></i><div><strong>Review the form</strong><p><?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></p></div></div>
 		<?php endif; ?>
 
-		<form method="POST" class="apply-form apply-form--stacked" novalidate>
+		<form method="POST" action="<?= appUrl('company/create-job.php' . ($jobId > 0 ? '?id=' . $jobId : '')) ?>" class="apply-form apply-form--stacked company-job-form" novalidate>
 			<?= csrfField() ?>
 
 			<div class="form-grid form-grid-two">
@@ -205,10 +383,13 @@ include '../includes/navbar.php';
 				<textarea id="requirements" name="requirements" rows="7" required><?= htmlspecialchars($formValues['requirements'], ENT_QUOTES, 'UTF-8') ?></textarea>
 			</div>
 
-			<button type="submit" class="btn-submit btn-block">
-				<i class="fas fa-save"></i> <?= $jobId > 0 ? 'Update Job' : 'Create Job' ?>
-			</button>
+			<div class="company-job-actions">
+				<button type="submit" class="btn-submit btn-block">
+					<i class="fas fa-save"></i> <?= $jobId > 0 ? 'Update Job' : 'Create Job' ?>
+				</button>
+			</div>
 		</form>
+		</div>
 	</div>
 </section>
 

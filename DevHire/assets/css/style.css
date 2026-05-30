@@ -339,6 +339,9 @@ p {
 .hero h1 {
     margin-bottom: 1rem;
     line-height: 1.2;
+    max-width: 12ch;
+    font-size: clamp(2.15rem, 4.2vw, 3.55rem);
+    letter-spacing: -0.035em;
 }
 
 .hero h1 .highlight {
@@ -349,10 +352,10 @@ p {
 }
 
 .hero-subtitle {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--text-secondary);
     margin-bottom: 2rem;
-    max-width: 500px;
+    max-width: 560px;
 }
 
 .hero-buttons {

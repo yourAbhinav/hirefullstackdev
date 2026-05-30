@@ -3,7 +3,7 @@ require_once '../includes/helpers.php';
 require_once '../config/site.php';
 
 $page_title = 'Developers - DevHire';
-$page_description = 'Browse our directory of verified full stack developers. Find top talent for your next project.';
+$page_description = 'Browse a verified developer talent pool for full stack developer jobs, frontend developer careers, backend developer careers, and remote hiring needs.';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
@@ -26,8 +26,8 @@ $offset = ($page - 1) * $perPage;
 <section class="page-hero">
     <div class="page-hero-inner">
         <span class="eyebrow">Developer Directory</span>
-        <h1>Verified Talent Pool</h1>
-        <p class="quick-apply-subtitle">Browse our curated directory of professional full stack developers ready to join your team.</p>
+        <h1>Verified Developer Talent Pool</h1>
+        <p class="quick-apply-subtitle">Browse a curated directory of software developers across frontend, backend, full stack, mobile, DevOps, and cloud specialties.</p>
         <div class="hero-buttons">
             <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-primary">Browse Jobs</a>
             <a href="<?= appUrl('pages/contact.php') ?>" class="btn-secondary">Contact Us</a>
@@ -37,6 +37,10 @@ $offset = ($page - 1) * $perPage;
 
 <!-- Search and Filters -->
 <section class="featured-jobs">
+    <div class="job-card" style="margin-bottom: 22px;">
+        <h2 class="job-title">A hiring-ready pool for teams that need technical talent</h2>
+        <p class="feature-description">This directory is designed for companies looking to hire developers who can work on modern product teams, contribute to engineering quality, and align with the technologies that matter most.</p>
+    </div>
     <div class="filters-container">
         <form method="GET" class="search-filters-form">
             <div class="filter-group">

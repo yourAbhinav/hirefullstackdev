@@ -51,14 +51,32 @@ Jobs
 </li>
 
 <li>
-<a href="<?= appUrl('pages/developers.php') ?>">
-Developers
+<a href="<?= appUrl('pages/about.php') ?>">
+About
 </a>
 </li>
 
 <li>
-<a href="<?= appUrl('pages/contact.php') ?>">
-Contact
+<a href="<?= appUrl('pages/careers.php') ?>">
+Careers
+ </a>
+ </li>
+
+ <li>
+<a href="<?= appUrl('pages/technologies.php') ?>">
+Technologies
+ </a>
+ </li>
+
+ <li>
+<a href="<?= appUrl('pages/faq.php') ?>">
+FAQ
+</a>
+</li>
+
+<li>
+<a href="<?= appUrl('pages/pricing.php') ?>">
+Pricing
 </a>
 </li>
 
@@ -79,6 +97,12 @@ For Developers
 <li>
 <a href="<?= appUrl('pages/jobs.php') ?>">
 Browse Jobs
+</a>
+</li>
+
+<li>
+<a href="<?= appUrl('pages/developers.php') ?>">
+Browse Developers
 </a>
 </li>
 
@@ -135,20 +159,20 @@ Post a Job
 </li>
 
 <li>
-<a href="<?= appUrl('pages/developers.php') ?>">
-Browse Developers
-</a>
-</li>
-
-<li>
 <a href="<?= appUrl('pages/how-it-works.php') ?>">
-Resources
+How It Works
 </a>
 </li>
 
 <li>
-<a href="<?= appUrl('pages/pricing.php') ?>">
-Pricing
+<a href="<?= appUrl('pages/testimonials.php') ?>">
+Testimonials
+</a>
+</li>
+
+<li>
+<a href="<?= appUrl('pages/blog-ideas.php') ?>">
+Blog Ideas
 </a>
 </li>
 
@@ -174,6 +198,11 @@ Contact Us
 <p>
 <i class="fas fa-envelope"></i>
 <?= CONTACT_SUPPORT_EMAIL ?>
+</p>
+
+<p>
+<i class="fas fa-briefcase"></i>
+<a href="<?= appUrl('pages/contact.php') ?>">Post a job or request talent</a>
 </p>
 
 <p>

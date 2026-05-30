@@ -24,5 +24,5 @@ if (getenv('SITE_URL') !== false && getenv('SITE_URL') !== '') {
 }
 
 // SEO Defaults
-define('SEO_DEFAULT_TITLE', SITE_COMPANY_NAME . ' - Hire Top Full Stack Developers');
-define('SEO_DEFAULT_DESCRIPTION', 'Connect with talented full stack developers. Verified companies, quality talent, seamless hiring process.');
+define('SEO_DEFAULT_TITLE', SITE_COMPANY_NAME . ' - Developer Hiring Platform');
+define('SEO_DEFAULT_DESCRIPTION', 'Hire software developers, explore remote developer jobs, and build stronger engineering teams with verified talent and a transparent hiring process.');

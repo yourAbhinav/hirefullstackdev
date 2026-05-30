@@ -3,6 +3,12 @@ $page_title = 'Job Management';
 require_once 'includes/admin_header.php';
 
 requireAdminPermission($conn, 'view_jobs');
+$canCreateJobs = adminHasPermission($conn, 'create_jobs');
+$canEditJobs = adminHasPermission($conn, 'edit_jobs');
+$canDeleteJobs = adminHasPermission($conn, 'delete_jobs');
+
+$companiesResult = $conn->query("SELECT id, COALESCE(NULLIF(company_name, ''), fullName) AS company_label FROM users WHERE role = 'company' ORDER BY COALESCE(NULLIF(company_name, ''), fullName) ASC");
+$companies = $companiesResult ? $companiesResult->fetch_all(MYSQLI_ASSOC) : [];
 
 // Search and filter parameters
 $search = $_GET['search'] ?? '';
@@ -89,9 +95,15 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
         <a href="<?= appUrl('admin/jobs_export.php') ?>" class="btn btn-outline">
             <i class="fas fa-download"></i> Export Jobs
         </a>
-        <button class="btn btn-primary" onclick="openModal('jobModal')">
-            <i class="fas fa-plus"></i> Create Job
-        </button>
+        <?php if ($canCreateJobs): ?>
+            <button type="button" class="btn btn-primary" onclick="openJobModal()">
+                <i class="fas fa-plus"></i> Create Job
+            </button>
+        <?php else: ?>
+            <button type="button" class="btn btn-primary" disabled title="You do not have permission to create jobs">
+                <i class="fas fa-plus"></i> Create Job
+            </button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -270,18 +282,22 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
                                     <button class="btn-icon" onclick="viewJob(<?= $job['id'] ?>)" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn-icon" onclick="editJob(<?= $job['id'] ?>)" title="Edit Job">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn-icon" onclick="toggleFeatured(<?= $job['id'] ?>, <?= $job['featured'] ? 0 : 1 ?>)" title="<?= $job['featured'] ? 'Remove from Featured' : 'Add to Featured' ?>">
-                                        <i class="fas fa-star"></i>
-                                    </button>
-                                    <button class="btn-icon" onclick="toggleStatus(<?= $job['id'] ?>, '<?= $job['status'] === 'active' ? 'close' : 'activate' ?>')" title="<?= $job['status'] === 'active' ? 'Close Job' : 'Activate Job' ?>">
-                                        <i class="fas <?= $job['status'] === 'active' ? 'fa-archive' : 'fa-check-circle' ?>"></i>
-                                    </button>
-                                    <button class="btn-icon btn-icon-danger" onclick="deleteJob(<?= $job['id'] ?>)" title="Delete Job">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <?php if ($canEditJobs): ?>
+                                        <button class="btn-icon" onclick="editJob(<?= $job['id'] ?>)" title="Edit Job">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-icon" onclick="toggleFeatured(<?= $job['id'] ?>, <?= $job['featured'] ? 0 : 1 ?>)" title="<?= $job['featured'] ? 'Remove from Featured' : 'Add to Featured' ?>">
+                                            <i class="fas fa-star"></i>
+                                        </button>
+                                        <button class="btn-icon" onclick="toggleStatus(<?= $job['id'] ?>, '<?= $job['status'] === 'active' ? 'close' : 'activate' ?>')" title="<?= $job['status'] === 'active' ? 'Close Job' : 'Activate Job' ?>">
+                                            <i class="fas <?= $job['status'] === 'active' ? 'fa-archive' : 'fa-check-circle' ?>"></i>
+                                        </button>
+                                    <?php endif; ?>
+                                    <?php if ($canDeleteJobs): ?>
+                                        <button class="btn-icon btn-icon-danger" onclick="deleteJob(<?= $job['id'] ?>)" title="Delete Job">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -317,13 +333,24 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
 <div id="jobModal" class="modal">
     <div class="modal-content modal-xl">
         <div class="modal-header">
-            <h3 id="jobModalTitle">Create New Job</h3>
+            <div>
+                <span class="eyebrow">Job Builder</span>
+                <h3 id="jobModalTitle">Create New Job</h3>
+            </div>
             <button class="modal-close" onclick="closeModal('jobModal')">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="modal-body">
-            <form id="jobForm">
+            <div class="job-modal-intro">
+                <p>Publish a clear, SEO-friendly role with the right company, stack, salary range, and hiring details.</p>
+                <div class="job-modal-pills">
+                    <span>Company-specific</span>
+                    <span>Search optimized</span>
+                    <span>Hiring-ready</span>
+                </div>
+            </div>
+            <form id="jobForm" class="job-form-grid">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="job_id" id="jobId">
                 
@@ -333,8 +360,13 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
                         <input type="text" name="title" id="jobTitle" required placeholder="e.g., Senior Full Stack Developer">
                     </div>
                     <div class="form-group">
-                        <label>Company ID *</label>
-                        <input type="number" name="company_id" id="companyId" required placeholder="Company ID">
+                        <label>Company *</label>
+                        <select name="company_id" id="companyId" required>
+                            <option value="">Select a company</option>
+                            <?php foreach ($companies as $company): ?>
+                                <option value="<?= (int) $company['id'] ?>"><?= htmlspecialchars($company['company_label'], ENT_QUOTES, 'UTF-8') ?> (ID <?= (int) $company['id'] ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                 </div>
                 
@@ -454,6 +486,76 @@ $featuredJobs = $conn->query("SELECT COUNT(*) as count FROM jobs WHERE featured 
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
     margin-bottom: 30px;
+}
+
+.job-modal-intro {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    margin-bottom: 22px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.06));
+    border: 1px solid rgba(79, 70, 229, 0.14);
+}
+
+.job-modal-intro p {
+    margin: 0;
+    color: #475569;
+    line-height: 1.6;
+    max-width: 780px;
+}
+
+.job-modal-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.job-modal-pills span {
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid rgba(79, 70, 229, 0.12);
+    color: #4338ca;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.job-form-grid {
+    display: grid;
+    gap: 18px;
+}
+
+.job-form-grid .form-group label {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.job-form-grid input,
+.job-form-grid select,
+.job-form-grid textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.job-form-grid input:focus,
+.job-form-grid select:focus,
+.job-form-grid textarea:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 4px;
 }
 
 .stat-active .stat-icon { background: linear-gradient(135deg, #10B981 0%, #059669 100%); }
@@ -595,6 +697,7 @@ const jobApiCsrfToken = document.querySelector('#jobForm input[name="csrf_token"
 function openJobModal() {
     document.getElementById('jobForm').reset();
     document.getElementById('jobId').value = '';
+    document.getElementById('companyId').value = '';
     document.getElementById('jobModalTitle').textContent = 'Create New Job';
     document.getElementById('jobSubmitBtn').textContent = 'Create Job';
     openModal('jobModal');

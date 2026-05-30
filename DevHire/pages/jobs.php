@@ -2,7 +2,8 @@
 
 require_once '../config/db.php';
 
-$page_title = 'Jobs - DevHire';
+$page_title = 'Software Developer Jobs - DevHire';
+$page_description = 'Explore software developer jobs, full stack developer jobs, React developer jobs, PHP developer jobs, Laravel developer jobs, Node.js developer jobs, Python developer jobs, Java developer jobs, and remote developer jobs.';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 
@@ -88,12 +89,17 @@ include '../includes/navbar.php';
 
     <section class="jobs-hero">
         <div class="jobs-hero-inner">
-            <h1>Job Opportunities</h1>
-            <p class="quick-apply-subtitle">Find your next amazing opportunity at top companies</p>
+            <span class="eyebrow">Software Developer Jobs</span>
+            <h1>Find your next developer opportunity</h1>
+            <p class="quick-apply-subtitle">Browse full stack developer jobs, frontend developer careers, backend developer careers, mobile app developer jobs, and remote developer jobs from verified companies.</p>
         </div>
     </section>
 
     <section class="featured-jobs">
+        <div class="job-card" style="margin-bottom: 22px;">
+            <h2 class="job-title">Search by skill, role, or work mode</h2>
+            <p class="feature-description">DevHire makes it easier to discover roles that fit your stack and experience. Use the filters below to find opportunities in React, PHP, Laravel, Node.js, Python, Java, cloud, DevOps, AI, machine learning, and security.</p>
+        </div>
         <form method="GET" action="<?= appUrl('pages/jobs.php') ?>" class="jobs-filter-panel">
             <div class="jobs-filter-grid">
                 <div class="form-group">

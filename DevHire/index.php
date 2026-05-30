@@ -5,10 +5,13 @@ if (ob_get_level() === 0) {
 }
 
 require_once 'config/db.php';
+require_once 'includes/seo_content.php';
 
-$page_title = "DevHire - Hire Top Full Stack Developers";
+$page_title = 'DevHire - Software Developer Jobs and Hiring Platform';
+$page_description = 'Hire software developers, browse full stack and remote developer jobs, and discover trusted engineering careers on DevHire.';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
+$homeCopy = devhire_home_copy();
 
 $currentName = currentUserName();
 $currentEmail = currentUserEmail();
@@ -42,20 +45,205 @@ include 'includes/header.php';
 include 'includes/navbar.php';
 ?>
 
+<style>
+    .hero {
+        min-height: 88vh;
+        padding: 3.5rem 2rem 2.5rem;
+    }
+
+    .hero-content h1 {
+        max-width: 11ch;
+    }
+
+    .hero-buttons {
+        margin-bottom: 2rem;
+    }
+
+    .quick-apply,
+    .featured-jobs,
+    .why-choose,
+    .timeline-section,
+    .stats-section,
+    .testimonials-section,
+    .technologies-section {
+        padding-top: 3.25rem;
+        padding-bottom: 3.25rem;
+    }
+
+    .quick-apply {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+
+    .quick-apply h2,
+    .section-title h2,
+    .cta-content h2 {
+        font-size: clamp(1.7rem, 2.8vw, 2.45rem);
+        letter-spacing: -0.03em;
+    }
+
+    .section-title {
+        margin-bottom: 2.25rem;
+    }
+
+    .section-title p {
+        max-width: 760px;
+        margin: 0.5rem auto 0;
+        line-height: 1.7;
+    }
+
+    .job-card,
+    .feature-card,
+    .stat-card,
+    .testimonial-card,
+    .tech-item,
+    .quick-apply-lock-card {
+        border-radius: 1.25rem;
+        border-color: rgba(148, 163, 184, 0.18);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+    }
+
+    .job-card,
+    .feature-card,
+    .stat-card,
+    .testimonial-card {
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.42), rgba(15, 23, 42, 0.58));
+    }
+
+    .job-card,
+    .feature-card,
+    .testimonial-card {
+        backdrop-filter: blur(14px);
+    }
+
+    .job-card {
+        padding: 1.6rem;
+    }
+
+    .feature-card {
+        padding: 1.6rem;
+    }
+
+    .feature-icon,
+    .tech-icon,
+    .testimonial-avatar,
+    .timeline-step {
+        box-shadow: 0 10px 24px rgba(79, 70, 229, 0.18);
+    }
+
+    .timeline-item {
+        padding: 1.6rem;
+    }
+
+    .timeline-step {
+        width: 52px;
+        height: 52px;
+        font-size: 1.2rem;
+    }
+
+    .timeline::before {
+        top: 46px;
+        opacity: 0.7;
+    }
+
+    .stat-card {
+        padding: 2rem;
+    }
+
+    .stat-number {
+        font-size: 2.15rem;
+    }
+
+    .testimonial-card {
+        padding: 1.6rem;
+    }
+
+    .tech-grid {
+        gap: 1.25rem;
+    }
+
+    .tech-item {
+        padding: 1rem 0.75rem;
+        background: rgba(15, 23, 42, 0.16);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .tech-icon {
+        width: 72px;
+        height: 72px;
+    }
+
+    .cta-section {
+        margin: 2.5rem 0 0;
+        padding: 4rem 2rem;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.42), rgba(15, 23, 42, 0.64));
+    }
+
+    .cta-content {
+        max-width: 760px;
+    }
+
+    .cta-content p {
+        max-width: 640px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .cta-features {
+        gap: 1.25rem;
+    }
+
+    .section-cta {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .section-cta .btn-primary {
+        min-width: 200px;
+    }
+
+    @media (max-width: 768px) {
+        .hero {
+            min-height: auto;
+            padding: 2.5rem 1.25rem 2rem;
+        }
+
+        .hero-content h1 {
+            max-width: 14ch;
+        }
+
+        .quick-apply,
+        .featured-jobs,
+        .why-choose,
+        .timeline-section,
+        .stats-section,
+        .testimonials-section,
+        .technologies-section {
+            padding-top: 2.5rem;
+            padding-bottom: 2.5rem;
+        }
+
+        .section-title {
+            margin-bottom: 1.75rem;
+        }
+    }
+</style>
+
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
-            <h1>Hire Top <span class="highlight">Full Stack</span> Developers</h1>
-            <p class="hero-subtitle">
-                We help businesses and startups hire verified, skilled and experienced full stack developers for your next project.
-            </p>
+            <span class="eyebrow"><?= htmlspecialchars($homeCopy['hero']['eyebrow'], ENT_QUOTES, 'UTF-8') ?></span>
+            <h1><?= htmlspecialchars($homeCopy['hero']['title'], ENT_QUOTES, 'UTF-8') ?></h1>
+            <p class="hero-subtitle"><?= htmlspecialchars($homeCopy['hero']['lead'], ENT_QUOTES, 'UTF-8') ?></p>
 
             <div class="hero-buttons">
-                <a href="<?= appUrl('pages/apply.php') ?>" class="btn-primary">
-                    <i class="fas fa-rocket"></i> Apply Now
+                <a href="<?= appUrl($homeCopy['hero']['primary_cta']['url']) ?>" class="btn-primary">
+                    <i class="fas fa-rocket"></i> <?= htmlspecialchars($homeCopy['hero']['primary_cta']['label'], ENT_QUOTES, 'UTF-8') ?>
                 </a>
-                <a href="<?= appUrl('pages/jobs.php') ?>" class="btn-secondary">
-                    <i class="fas fa-briefcase"></i> View Open Positions
+                <a href="<?= appUrl($homeCopy['hero']['secondary_cta']['url']) ?>" class="btn-secondary">
+                    <i class="fas fa-briefcase"></i> <?= htmlspecialchars($homeCopy['hero']['secondary_cta']['label'], ENT_QUOTES, 'UTF-8') ?>
                 </a>
             </div>
 
@@ -67,8 +255,8 @@ include 'includes/navbar.php';
                     <div class="avatar">+</div>
                 </div>
                 <div class="trust-text">
-                    <h4>Trusted by 500+ Companies</h4>
-                    <p>Leading tech companies trust us</p>
+                    <h4>Trusted by candidates and hiring teams</h4>
+                    <p><?= htmlspecialchars(implode(' • ', $homeCopy['hero']['trust_points']), ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
             </div>
         </div>
@@ -101,7 +289,7 @@ include 'includes/navbar.php';
     <!-- Quick Apply Form Section -->
     <section class="quick-apply">
         <h2>Quick Apply Now</h2>
-        <p class="quick-apply-subtitle">Apply in under 2 minutes and get hired faster.</p>
+        <p class="quick-apply-subtitle">Apply in under 2 minutes and get matched with roles that fit your skills, stack, and experience.</p>
 
         <?php if (!empty($applySuccess)): ?>
             <div class="notice notice-success notice-compact">
@@ -211,7 +399,7 @@ include 'includes/navbar.php';
     <section class="featured-jobs">
         <div class="section-title">
             <h2>Featured Open Positions</h2>
-            <p>Explore amazing opportunities at leading companies</p>
+            <p>Explore software developer jobs, remote developer jobs, and in-demand engineering careers from verified employers</p>
         </div>
 
         <div class="jobs-grid">
@@ -269,57 +457,48 @@ include 'includes/navbar.php';
     <!-- Why Choose Us Section -->
     <section class="why-choose">
         <div class="section-title">
-            <h2>Why Apply With Us?</h2>
-            <p>We make hiring and finding jobs simple and effective</p>
+            <h2>Why Choose DevHire?</h2>
+            <p>A platform built for trust, relevance, and better hiring outcomes</p>
         </div>
 
         <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-globe"></i>
+            <?php foreach ($homeCopy['why_choose'] as $card): ?>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="<?= htmlspecialchars($card['icon'], ENT_QUOTES, 'UTF-8') ?>"></i>
+                    </div>
+                    <h3 class="feature-title"><?= htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                    <p class="feature-description"><?= htmlspecialchars($card['copy'], ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
-                <h3 class="feature-title">Remote Opportunities</h3>
-                <p class="feature-description">Work from anywhere in the world. Enjoy complete flexibility and work-life balance.</p>
-            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-tachometer-alt"></i>
+    <!-- About DevHire Section -->
+    <section class="featured-jobs">
+        <div class="section-title">
+            <h2><?= htmlspecialchars($homeCopy['about']['title'], ENT_QUOTES, 'UTF-8') ?></h2>
+            <p><?= htmlspecialchars($homeCopy['about']['eyebrow'], ENT_QUOTES, 'UTF-8') ?></p>
+        </div>
+        <div class="jobs-grid">
+            <div class="job-card">
+                <?php foreach ($homeCopy['about']['paragraphs'] as $paragraph): ?>
+                    <p class="feature-description"><?= htmlspecialchars($paragraph, ENT_QUOTES, 'UTF-8') ?></p>
+                <?php endforeach; ?>
+                <div class="job-tags">
+                    <?php foreach ($homeCopy['about']['stats'] as $stat): ?>
+                        <span class="tag"><?= htmlspecialchars($stat['value'] . ' ' . $stat['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endforeach; ?>
                 </div>
-                <h3 class="feature-title">Fast Hiring Process</h3>
-                <p class="feature-description">Get hired in as little as 2 weeks. Our streamlined process ensures quick turnaround.</p>
             </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-project-diagram"></i>
-                </div>
-                <h3 class="feature-title">Real World Projects</h3>
-                <p class="feature-description">Work on meaningful projects that impact millions of users worldwide.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <h3 class="feature-title">Flexible Work Hours</h3>
-                <p class="feature-description">Choose your own working hours and work at your own pace with no restrictions.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-graduation-cap"></i>
-                </div>
-                <h3 class="feature-title">Professional Growth</h3>
-                <p class="feature-description">Continuous learning opportunities and mentorship from industry experts.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-handshake"></i>
-                </div>
-                <h3 class="feature-title">Long-term Partnerships</h3>
-                <p class="feature-description">Build lasting professional relationships with companies and fellow developers.</p>
+            <div class="job-card">
+                <h3 class="job-title">What makes the platform different</h3>
+                <ul class="how-offer-list">
+                    <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i>Verified developer profiles with stronger skill signals</li>
+                    <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i>Software developer jobs that support clear stack matching</li>
+                    <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i>Hiring journeys designed for trust and higher conversion</li>
+                    <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i>Career pages built to improve SEO and user engagement</li>
+                </ul>
             </div>
         </div>
     </section>
@@ -328,33 +507,48 @@ include 'includes/navbar.php';
     <section class="timeline-section">
         <div class="section-title">
             <h2>Our Hiring Process</h2>
-            <p>Four simple steps to your dream job</p>
+            <p>Four simple steps to a better hiring decision</p>
         </div>
 
         <div class="timeline">
             <div class="timeline-item">
                 <div class="timeline-step">1</div>
-                <h3 class="timeline-title">Apply</h3>
-                <p class="timeline-description">Submit your application with your resume and portfolio in under 2 minutes.</p>
+                    <h3 class="timeline-title">Apply</h3>
+                    <p class="timeline-description">Submit your application with your resume, portfolio, and stack details in under 2 minutes.</p>
             </div>
 
             <div class="timeline-item">
                 <div class="timeline-step">2</div>
-                <h3 class="timeline-title">Screening</h3>
-                <p class="timeline-description">We review your profile and match you with suitable opportunities.</p>
+                    <h3 class="timeline-title">Screening</h3>
+                    <p class="timeline-description">We review your profile and match you with roles based on stack, seniority, and hiring need.</p>
             </div>
 
             <div class="timeline-item">
                 <div class="timeline-step">3</div>
-                <h3 class="timeline-title">Interview</h3>
-                <p class="timeline-description">Technical and HR interviews to ensure the perfect fit for both sides.</p>
+                    <h3 class="timeline-title">Interview</h3>
+                    <p class="timeline-description">Technical and HR interviews help both sides confirm culture fit, communication, and delivery expectations.</p>
             </div>
 
             <div class="timeline-item">
                 <div class="timeline-step">4</div>
-                <h3 class="timeline-title">Offer</h3>
-                <p class="timeline-description">Receive your offer and start your exciting journey with the company.</p>
+                    <h3 class="timeline-title">Offer</h3>
+                    <p class="timeline-description">Receive your offer and start a new role with clearer expectations and better long-term growth potential.</p>
             </div>
+        </div>
+    </section>
+
+    <!-- Engineering Culture Section -->
+    <section class="featured-jobs">
+        <div class="section-title">
+            <h2><?= htmlspecialchars($homeCopy['culture']['title'], ENT_QUOTES, 'UTF-8') ?></h2>
+            <p>How high-performing engineering teams work</p>
+        </div>
+        <div class="jobs-grid">
+            <?php foreach ($homeCopy['culture']['paragraphs'] as $paragraph): ?>
+                <div class="job-card">
+                    <p class="feature-description"><?= htmlspecialchars($paragraph, ENT_QUOTES, 'UTF-8') ?></p>
+                </div>
+            <?php endforeach; ?>
         </div>
     </section>
 
@@ -362,28 +556,41 @@ include 'includes/navbar.php';
     <section class="stats-section">
         <div class="section-title">
             <h2>Our Impact</h2>
-            <p>Trusted by thousands of developers and companies</p>
+            <p>Signals that reflect the trust and momentum behind the platform</p>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number">500+</div>
-                <div class="stat-label">Applications</div>
-            </div>
+            <?php foreach ($homeCopy['stats'] as $stat): ?>
+                <div class="stat-card">
+                    <div class="stat-number"><?= htmlspecialchars($stat['value'], ENT_QUOTES, 'UTF-8') ?></div>
+                    <div class="stat-label"><?= htmlspecialchars($stat['label'], ENT_QUOTES, 'UTF-8') ?></div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
-            <div class="stat-card">
-                <div class="stat-number">120+</div>
-                <div class="stat-label">Developers Hired</div>
+    <!-- Career Growth and Benefits Section -->
+    <section class="featured-jobs">
+        <div class="section-title">
+            <h2><?= htmlspecialchars($homeCopy['growth']['title'], ENT_QUOTES, 'UTF-8') ?></h2>
+            <p><?= htmlspecialchars($homeCopy['benefits']['title'], ENT_QUOTES, 'UTF-8') ?></p>
+        </div>
+        <div class="jobs-grid">
+            <div class="job-card">
+                <h3 class="job-title"><?= htmlspecialchars($homeCopy['growth']['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                <ul class="how-offer-list">
+                    <?php foreach ($homeCopy['growth']['items'] as $item): ?>
+                        <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i><?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?></li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
-
-            <div class="stat-card">
-                <div class="stat-number">50+</div>
-                <div class="stat-label">Partner Companies</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-number">95%</div>
-                <div class="stat-label">Satisfaction Rate</div>
+            <div class="job-card">
+                <h3 class="job-title"><?= htmlspecialchars($homeCopy['benefits']['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                <ul class="how-offer-list">
+                    <?php foreach ($homeCopy['benefits']['items'] as $item): ?>
+                        <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-secondary"></i><?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?></li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
         </div>
     </section>
@@ -392,150 +599,88 @@ include 'includes/navbar.php';
     <section class="testimonials-section">
         <div class="section-title">
             <h2>Success Stories</h2>
-            <p>Hear from developers who found their dream job</p>
+            <p>Hear from developers and hiring teams who value a clearer process</p>
         </div>
 
         <div class="testimonials-grid">
-            <div class="testimonial-card">
-                <div class="testimonial-stars">
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-quote">
-                    "DevHire helped me find a great remote job with an incredible team. The process was smooth and hassle-free."
-                </p>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar">AJ</div>
-                    <div class="testimonial-info">
-                        <h4>Arjun Patel</h4>
-                        <p class="testimonial-role">Full Stack Developer</p>
+            <?php foreach ($homeCopy['testimonials'] as $testimonial): ?>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-quote">&quot;<?= htmlspecialchars($testimonial['quote'], ENT_QUOTES, 'UTF-8') ?>&quot;</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar"><?= htmlspecialchars(strtoupper(substr($testimonial['name'], 0, 2)), ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="testimonial-info">
+                            <h4><?= htmlspecialchars($testimonial['name'], ENT_QUOTES, 'UTF-8') ?></h4>
+                            <p class="testimonial-role"><?= htmlspecialchars($testimonial['role'], ENT_QUOTES, 'UTF-8') ?></p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
-            <div class="testimonial-card">
-                <div class="testimonial-stars">
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
+    <!-- Industry Focus Section -->
+    <section class="technologies-section">
+        <div class="section-title">
+            <h2><?= htmlspecialchars($homeCopy['industry_focus']['title'], ENT_QUOTES, 'UTF-8') ?></h2>
+            <p>Where we see the strongest demand for hiring and growth</p>
+        </div>
+        <div class="tech-grid">
+            <?php foreach ($homeCopy['industry_focus']['items'] as $item): ?>
+                <div class="tech-item">
+                    <div class="tech-icon"><i class="fas fa-building"></i></div>
+                    <div class="tech-name"><?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
-                <p class="testimonial-quote">
-                    "I got multiple interview calls within a week. The team is supportive and the hiring process is very transparent."
-                </p>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar">PS</div>
-                    <div class="testimonial-info">
-                        <h4>Priya Sharma</h4>
-                        <p class="testimonial-role">Frontend Developer</p>
-                    </div>
-                </div>
-            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
-            <div class="testimonial-card">
-                <div class="testimonial-stars">
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star"></i>
-                    <i class="fas fa-star-half-alt"></i>
+    <!-- FAQ Section -->
+    <section class="why-choose">
+        <div class="section-title">
+            <h2>Frequently Asked Questions</h2>
+            <p>Quick answers for candidates and hiring teams</p>
+        </div>
+        <div class="features-grid">
+            <?php foreach ($homeCopy['faq'] as $faqItem): ?>
+                <div class="feature-card">
+                    <h3 class="feature-title"><?= htmlspecialchars($faqItem['q'], ENT_QUOTES, 'UTF-8') ?></h3>
+                    <p class="feature-description"><?= htmlspecialchars($faqItem['a'], ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
-                <p class="testimonial-quote">
-                    "Best platform for developers! I'm now working on challenging projects and growing my career exponentially."
-                </p>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar">RV</div>
-                    <div class="testimonial-info">
-                        <h4>Rohit Verma</h4>
-                        <p class="testimonial-role">Backend Developer</p>
-                    </div>
-                </div>
-            </div>
+            <?php endforeach; ?>
         </div>
     </section>
 
     <!-- Technologies Section -->
     <section class="technologies-section">
         <div class="section-title">
-            <h2>Technologies We Use</h2>
-            <p>Work with cutting-edge technologies and frameworks</p>
+            <h2>Technologies We Hire For</h2>
+            <p>Frontend, backend, mobile, cloud, AI, security, design, and quality engineering</p>
         </div>
 
         <div class="tech-grid">
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-react"></i>
+            <?php foreach ($homeCopy['technologies'] as $tech): ?>
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="<?= htmlspecialchars($tech['icon'], ENT_QUOTES, 'UTF-8') ?>"></i>
+                    </div>
+                    <div class="tech-name"><?= htmlspecialchars($tech['name'], ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
-                <div class="tech-name">React</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-js-square"></i>
-                </div>
-                <div class="tech-name">JavaScript</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    TS
-                </div>
-                <div class="tech-name">TypeScript</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-node-js"></i>
-                </div>
-                <div class="tech-name">Node.js</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-php"></i>
-                </div>
-                <div class="tech-name">PHP</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-python"></i>
-                </div>
-                <div class="tech-name">Python</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-aws"></i>
-                </div>
-                <div class="tech-name">AWS</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-docker"></i>
-                </div>
-                <div class="tech-name">Docker</div>
-            </div>
-
-            <div class="tech-item">
-                <div class="tech-icon">
-                    <i class="fab fa-git-alt"></i>
-                </div>
-                <div class="tech-name">Git</div>
-            </div>
+            <?php endforeach; ?>
         </div>
     </section>
 
     <!-- Final CTA Section -->
     <section class="cta-section">
         <div class="cta-content">
-            <h2>Ready to Join Amazing Companies?</h2>
-            <p>Apply now and take the next step in your career</p>
+            <h2>Ready to join the right team?</h2>
+            <p>Apply now, explore developer careers, and take the next step with a clearer hiring experience.</p>
 
             <div class="cta-features">
                 <div class="cta-feature">
