@@ -4,12 +4,6 @@ require_once '../includes/admin_helpers.php';
 
 $siteName = getSiteName();
 
-// Redirect if already logged in as admin
-if (isAdminLoggedIn()) {
-    header('Location: ' . appUrl('admin/dashboard.php'));
-    exit;
-}
-
 $page_title = 'Admin Login - ' . $siteName;
 $loginError = $_SESSION['admin_error'] ?? '';
 $googleError = $_SESSION['google_error'] ?? '';
@@ -42,27 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') === 
     }
 }
 
-// Handle login form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 'request_admin_access')) {
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $remember = isset($_POST['remember']);
-    
-    if (empty($email) || empty($password)) {
-        $loginError = 'Please enter both email and password';
-    } elseif (in_array($password, ['admin123', 'Admin@123'], true)) {
-        $loginError = 'Default passwords are disabled. Use your assigned secure password or Google sign-in.';
-    } else {
-        $result = adminLogin($conn, $email, $password, $remember);
-        
-        if ($result['success']) {
-            header('Location: ' . appUrl('admin/dashboard.php'));
-            exit;
-        } else {
-            $loginError = $result['message'];
-        }
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -499,8 +472,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 
                 </div>
             <?php endif; ?>
             
-            <form method="POST" action="" id="adminLoginForm">
-                <input type="hidden" name="form_action" value="admin_login">
+            <form method="POST" action="<?= appUrl('auth/login_handler.php') ?>" id="adminLoginForm">
+                <?= csrfField() ?>
+                <input type="hidden" name="mode" value="admin">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" placeholder="name@company.com" required autocomplete="username">
@@ -646,7 +620,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 
             const check = () => {
                 const ready = typeof window.firebase !== 'undefined'
                     && window.DevHireFirebase
-                    && typeof window.DevHireFirebase.signInWithGoogle === 'function';
+                    && typeof window.DevHireFirebase.signInWithGoogle === 'function'
+                    && typeof window.DevHireFirebase.signInWithEmailAndPassword === 'function';
 
                 if (ready) {
                     callback();
@@ -660,11 +635,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['form_action'] ?? '') !== 
         waitForFirebase(() => {
             const devHireFirebase = window.DevHireFirebase;
             const signInButton = document.getElementById('googleSignInBtn');
+            const loginForm = document.getElementById('adminLoginForm');
+            const emailField = document.getElementById('email');
+            const passwordField = document.getElementById('password');
+            const rememberField = document.querySelector('input[name="remember"]');
+            const loginHandlerUrl = <?= json_encode(appUrl('auth/login_handler.php'), JSON_UNESCAPED_SLASHES) ?>;
             if (!signInButton) {
                 return;
             }
 
             void devHireFirebase.setFirebasePersistence();
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    const email = (emailField?.value || '').trim();
+                    const password = passwordField?.value || '';
+                    const csrfToken = loginForm.querySelector('input[name="csrf_token"]')?.value || '';
+                    const submitButton = loginForm.querySelector('button[type="submit"]');
+                    const submitLabel = submitButton ? submitButton.innerHTML : '';
+
+                    if (!email || !password) {
+                        showLoginError('Please enter both email and password.');
+                        return;
+                    }
+
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+                    }
+
+                    try {
+                        const result = await devHireFirebase.signInWithEmailAndPassword(email, password);
+                        const idToken = await result.user.getIdToken(true);
+                        const response = await fetch(loginHandlerUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                mode: 'admin',
+                                idToken,
+                                email,
+                                csrf_token: csrfToken,
+                                remember_me: rememberField && rememberField.checked ? '1' : '0'
+                            })
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Admin sign-in failed.');
+                        }
+
+                        window.location.assign(data.redirect || adminDashboardUrl);
+                    } catch (error) {
+                        console.error('Admin Email/Password Sign-In Error:', error);
+                        showLoginError(error?.message || 'Admin sign-in failed. Please try again.');
+                    } finally {
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = submitLabel;
+                        }
+                    }
+                });
+            }
 
             signInButton.addEventListener('click', async function () {
                 const btn = this;

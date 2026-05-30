@@ -5,7 +5,7 @@ function devhire_home_copy(): array
     return [
         'hero' => [
             'eyebrow' => 'Developer Hiring Platform',
-            'title' => 'Hire software developers with trusted matches',
+            'title' => 'Hire Top Full Stack Developers',
             'lead' => 'DevHire connects companies with vetted software engineers across full stack, frontend, backend, mobile, cloud, data, and security roles. The platform is built to improve search visibility, trust, and application quality.',
             'primary_cta' => ['label' => 'Browse Open Jobs', 'url' => 'pages/jobs.php'],
             'secondary_cta' => ['label' => 'Explore Careers', 'url' => 'pages/careers.php'],

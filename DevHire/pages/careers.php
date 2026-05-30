@@ -8,6 +8,13 @@ $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 $careers = devhire_careers_copy();
 
+$careersImageHtml = renderResponsiveImage(
+    'team-culture.jpg',
+    'A collaborative engineering team discussing priorities and delivery',
+    'careers-feature-image',
+    '(max-width: 900px) 100vw, 520px'
+);
+
 include '../includes/header.php';
 include '../includes/navbar.php';
 ?>
@@ -17,6 +24,24 @@ include '../includes/navbar.php';
         <span class="eyebrow">Careers</span>
         <h1>Build the future of developer hiring</h1>
         <p class="quick-apply-subtitle">Work on a platform that helps software professionals find meaningful roles and helps companies hire with confidence.</p>
+    </div>
+</section>
+
+<section class="featured-jobs">
+    <div class="jobs-grid">
+        <div class="job-card">
+            <?= $careersImageHtml ?>
+        </div>
+        <div class="job-card">
+            <h2 class="job-title">A place for focused builders</h2>
+            <p class="feature-description">DevHire teams work on tools that improve developer visibility, hiring quality, and the clarity of every application flow.</p>
+            <p class="feature-description">You will help shape the experience for candidates, recruiters, and engineering leaders with practical, measurable product improvements.</p>
+            <div class="job-tags">
+                <span class="tag">Ownership</span>
+                <span class="tag">Quality</span>
+                <span class="tag">Impact</span>
+            </div>
+        </div>
     </div>
 </section>
 

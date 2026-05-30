@@ -1,0 +1,13 @@
+{
+  "name": "devhire-frontend-build",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "images": "node convert-images.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.18.0",
+    "sharp": "^0.32.6"
+  }
+}

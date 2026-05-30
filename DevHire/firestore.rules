@@ -1,0 +1,42 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /user_profiles/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /applications/{applicationId} {
+      allow create: if signedIn()
+        && request.resource.data.firebase_uid == request.auth.uid
+        && request.resource.data.user_email == request.auth.token.email;
+
+      allow read, update, delete: if signedIn() && (
+        resource.data.firebase_uid == request.auth.uid ||
+        resource.data.company_firebase_uid == request.auth.uid
+      );
+    }
+
+    match /saved_jobs/{savedJobId} {
+      allow create: if signedIn() && request.resource.data.firebase_uid == request.auth.uid;
+      allow read, update, delete: if signedIn() && resource.data.firebase_uid == request.auth.uid;
+    }
+
+    match /messages/{messageId} {
+      allow create: if signedIn()
+        && request.resource.data.sender_email == request.auth.token.email;
+
+      allow read: if signedIn() && (
+        resource.data.sender_email == request.auth.token.email ||
+        resource.data.receiver_email == request.auth.token.email ||
+        request.auth.token.email in resource.data.participant_emails
+      );
+
+      allow update, delete: if signedIn() && resource.data.sender_email == request.auth.token.email;
+    }
+  }
+}

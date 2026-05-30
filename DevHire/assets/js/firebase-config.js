@@ -91,6 +91,12 @@ async function signInWithGoogle() {
   return auth.signInWithPopup(createGoogleProvider());
 }
 
+async function signInWithEmailAndPassword(email, password) {
+  const auth = getFirebaseAuth();
+  await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+  return auth.signInWithEmailAndPassword(email, password);
+}
+
 async function signOutFirebase() {
   const auth = getFirebaseAuth();
   await auth.signOut();
@@ -103,6 +109,7 @@ window.DevHireFirebase = {
   createGoogleProvider,
   setFirebasePersistence,
   signInWithGoogle,
+  signInWithEmailAndPassword,
   signOutFirebase
 };
 

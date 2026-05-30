@@ -8,6 +8,13 @@ $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 $about = devhire_about_copy();
 
+$aboutImageHtml = renderResponsiveImage(
+    'about-impact.jpg',
+    'DevHire helping teams make better hiring decisions',
+    'about-feature-image',
+    '(max-width: 900px) 100vw, 520px'
+);
+
 include '../includes/header.php';
 include '../includes/navbar.php';
 ?>
@@ -17,6 +24,24 @@ include '../includes/navbar.php';
         <span class="eyebrow">About DevHire</span>
         <h1><?= htmlspecialchars($about['story']['title'], ENT_QUOTES, 'UTF-8') ?></h1>
         <p class="quick-apply-subtitle">A developer hiring platform built to improve trust, visibility, and long-term hiring quality.</p>
+    </div>
+</section>
+
+<section class="featured-jobs">
+    <div class="jobs-grid">
+        <div class="job-card">
+            <?= $aboutImageHtml ?>
+        </div>
+        <div class="job-card">
+            <h2 class="job-title">Hiring with better context</h2>
+            <p class="feature-description">We designed DevHire to make technical hiring more transparent. The platform highlights skill signals, experience level, and portfolio strength so every conversation starts with better information.</p>
+            <p class="feature-description">That means companies spend less time sorting noise and more time speaking with candidates who are actually aligned with the work.</p>
+            <div class="job-tags">
+                <span class="tag">Trust</span>
+                <span class="tag">Clarity</span>
+                <span class="tag">Strong matches</span>
+            </div>
+        </div>
     </div>
 </section>
 

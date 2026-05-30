@@ -6,12 +6,20 @@ if (ob_get_level() === 0) {
 
 require_once 'config/db.php';
 require_once 'includes/seo_content.php';
+require_once 'includes/helpers.php';
 
 $page_title = 'DevHire - Software Developer Jobs and Hiring Platform';
 $page_description = 'Hire software developers, browse full stack and remote developer jobs, and discover trusted engineering careers on DevHire.';
 $css_path = appUrl('assets/css/style.css');
 $js_path = appUrl('assets/js/main.js');
 $homeCopy = devhire_home_copy();
+$heroTitleRaw = (string) ($homeCopy['hero']['title'] ?? '');
+$heroTitleEscaped = htmlspecialchars($heroTitleRaw, ENT_QUOTES, 'UTF-8');
+$heroTitleWithHighlight = preg_replace('/\bFull Stack\b/i', '<span class="highlight">$0</span>', $heroTitleEscaped, 1);
+
+if ($heroTitleWithHighlight === null) {
+    $heroTitleWithHighlight = $heroTitleEscaped;
+}
 
 $currentName = currentUserName();
 $currentEmail = currentUserEmail();
@@ -235,7 +243,7 @@ include 'includes/navbar.php';
     <section class="hero">
         <div class="hero-content">
             <span class="eyebrow"><?= htmlspecialchars($homeCopy['hero']['eyebrow'], ENT_QUOTES, 'UTF-8') ?></span>
-            <h1><?= htmlspecialchars($homeCopy['hero']['title'], ENT_QUOTES, 'UTF-8') ?></h1>
+            <h1><?= $heroTitleWithHighlight ?></h1>
             <p class="hero-subtitle"><?= htmlspecialchars($homeCopy['hero']['lead'], ENT_QUOTES, 'UTF-8') ?></p>
 
             <div class="hero-buttons">
@@ -492,7 +500,13 @@ include 'includes/navbar.php';
                 </div>
             </div>
             <div class="job-card">
-                <h3 class="job-title">What makes the platform different</h3>
+                <?= renderResponsiveImage(
+                    'team-culture.jpg',
+                    'A modern software team reviewing hiring priorities together',
+                    'feature-image',
+                    '(max-width: 900px) 100vw, 520px'
+                ) ?>
+                <h3 class="job-title" style="margin-top:18px;">What makes the platform different</h3>
                 <ul class="how-offer-list">
                     <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i>Verified developer profiles with stronger skill signals</li>
                     <li class="how-offer-item"><i class="fas fa-check-circle how-offer-icon how-offer-icon-primary"></i>Software developer jobs that support clear stack matching</li>

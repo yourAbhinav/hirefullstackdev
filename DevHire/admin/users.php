@@ -198,8 +198,8 @@ $providers = $conn->query("SELECT DISTINCT provider FROM users")->fetch_all(MYSQ
                             <td>
                                 <div class="user-cell">
                                     <div class="user-avatar">
-                                        <?php if ($user['profile_image']): ?>
-                                            <img src="<?= htmlspecialchars($user['profile_image']) ?>" alt="<?= htmlspecialchars($user['fullName']) ?>">
+                                            <?php if ($user['profile_image']): ?>
+                                            <img loading="lazy" src="<?= htmlspecialchars($user['profile_image']) ?>" alt="<?= htmlspecialchars($user['fullName']) ?>" width="48" height="48">
                                         <?php else: ?>
                                             <?= strtoupper(substr($user['fullName'], 0, 1)) ?>
                                         <?php endif; ?>
@@ -860,7 +860,7 @@ function viewUser(userId) {
                 document.getElementById('userModalBody').innerHTML = `
                     <div class="user-detail-header">
                         <div class="user-detail-avatar">
-                            ${user.profile_image ? `<img src="${user.profile_image}" alt="${user.fullName}">` : user.fullName.charAt(0).toUpperCase()}
+                            ${user.profile_image ? `<img loading="lazy" src="${user.profile_image}" alt="${user.fullName}" width="90" height="90">` : user.fullName.charAt(0).toUpperCase()}
                         </div>
                         <div class="user-detail-info">
                             <h4>${user.fullName}</h4>

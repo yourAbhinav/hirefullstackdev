@@ -65,7 +65,7 @@ $roleHome = roleDashboardPath($currentRole);
                     <?php if ($isAuthenticated): ?>
                         <a class="user-chip user-chip-link" href="<?= appUrl($roleHome) ?>">
                             <?php if (!empty($displayPhoto)): ?>
-                                <img src="<?= htmlspecialchars($displayPhoto, ENT_QUOTES, 'UTF-8') ?>" alt="User photo" class="user-avatar">
+                                <img loading="lazy" decoding="async" src="<?= htmlspecialchars($displayPhoto, ENT_QUOTES, 'UTF-8') ?>" alt="User photo" class="user-avatar" width="40" height="40">
                             <?php else: ?>
                                 <span class="user-avatar user-avatar-fallback"><?= htmlspecialchars(strtoupper(substr($displayName, 0, 1)), ENT_QUOTES, 'UTF-8') ?></span>
                             <?php endif; ?>

@@ -672,8 +672,8 @@ include '../includes/navbar.php';
             <div class="profile-card">
                 <div class="profile-card-top">
                     <div class="profile-avatar-wrap">
-                        <?php if (!empty($profilePhotoUrl)): ?>
-                            <img src="<?= escape($profilePhotoUrl) ?>" alt="Profile photo" class="profile-avatar">
+                            <?php if (!empty($profilePhotoUrl)): ?>
+                            <img loading="lazy" src="<?= escape($profilePhotoUrl) ?>" alt="Profile photo" class="profile-avatar" width="90" height="90">
                         <?php else: ?>
                             <div class="profile-avatar profile-avatar-fallback"><?= escape(strtoupper(substr($profileName, 0, 1))) ?></div>
                         <?php endif; ?>

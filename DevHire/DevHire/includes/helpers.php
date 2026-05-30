@@ -80,6 +80,34 @@ function startSecureSession(): void
     session_start();
 }
 
+/**
+ * Start admin-specific secure session with separate session name
+ * This ensures admin and user sessions are completely separate
+ */
+function startAdminSecureSession(): void
+{
+    // Close any existing session to prevent session mixing
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
+
+    // Set admin-specific session name before starting session
+    session_name('ADMINSESSID');
+
+    session_set_cookie_params([
+        'lifetime' => 60 * 60 * 24 * 30,
+        'path' => APP_BASE_URL !== '' ? APP_BASE_URL : '/',
+        'secure' => $isSecure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    session_start();
+}
+
 function appUrl(string $path = ''): string
 {
     $normalizedPath = ltrim($path, '/');

@@ -181,7 +181,7 @@ function adminLogin(mysqli $conn, string $email, string $password, bool $remembe
     $stmt->close();
 
     // Set admin session
-    startSecureSession();
+    startAdminSecureSession();
     session_regenerate_id(true);
     
     $_SESSION['admin_id'] = $admin['id'];
@@ -211,7 +211,7 @@ function adminLogout(mysqli $conn = null): void
         logAdminAction($conn, $adminId, 'logout', 'admin_account', $adminId);
     }
 
-    startSecureSession();
+    startAdminSecureSession();
     
     $_SESSION = [];
     

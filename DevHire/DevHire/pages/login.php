@@ -156,8 +156,8 @@ waitForFirebase(() => {
 	const firebaseAuth = devHireFirebase.getFirebaseAuth();
 	void devHireFirebase.setFirebasePersistence();
 
-const signInButton = document.getElementById('googleSignInBtn');
-const rememberMeField = document.getElementById('rememberMe');
+	const signInButton = document.getElementById('googleSignInBtn');
+	const rememberMeField = document.getElementById('rememberMe');
 	const csrfToken = '<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>';
 
 	async function syncUser(user) {
@@ -198,39 +198,20 @@ const rememberMeField = document.getElementById('rememberMe');
 			await syncUser(result.user);
 		} catch (error) {
 			// Create error notification without using alert()
-			const errorMessage = error.message || 'Login failed.';
-			
-			// Try to display via notification system first
+			console.error('Google sign-in error:', error);
 			if (window.DevHire && typeof window.DevHire.showNotification === 'function') {
-				window.DevHire.showNotification(errorMessage, 'error');
-			} else {
-				// Fallback: insert error div into page (not alert())
-				const existingError = document.querySelector('.notice-login-error');
-				if (existingError) {
-					existingError.remove();
-				}
-				
-				const errorDiv = document.createElement('div');
-				errorDiv.className = 'auth-notice auth-notice-error';
-				errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>' + errorMessage + '</span>';
-				
-				const formHeader = document.querySelector('.auth-form-header');
-				if (formHeader) {
-					formHeader.parentNode.insertBefore(errorDiv, formHeader.nextSibling);
-				}
+				window.DevHire.showNotification('Google sign-in failed. Please try again or use email/password.', 'error');
 			}
-			
+		} finally {
 			signInButton.disabled = false;
 			signInButton.innerHTML = '<i class="fab fa-google auth-google-icon"></i> Continue with Google';
 		}
 	}
 
 	signInButton.addEventListener('click', signInWithGoogle);
-
-	// Do not auto-sync an existing Firebase session from this page.
-	// Users must explicitly click sign-in so stale browser auth state
-	// cannot trigger unexpected "automatic login" behavior.
-}); // End waitForFirebase callback
+});
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php
+include '../includes/footer.php';
+?>

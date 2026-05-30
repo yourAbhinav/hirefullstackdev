@@ -75,10 +75,16 @@ type="image/svg+xml"
 href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%237c3aed' width='100' height='100'/><text x='50' y='60' font-size='55' fill='white' text-anchor='middle'>&lt;/&gt;</text></svg>">
 
 <!-- MAIN CSS -->
-
-<link
-rel="stylesheet"
-href="<?= htmlspecialchars(appUrl('assets/css/style.css?v=3'), ENT_QUOTES, 'UTF-8') ?>">
+<?php
+// Prefer a production-built minified stylesheet when available
+$mainCssPath = __DIR__ . '/../assets/css/style.min.css';
+if (file_exists($mainCssPath)) {
+	$cssUrl = appUrl('assets/css/style.min.css?v=3');
+} else {
+	$cssUrl = appUrl('assets/css/style.css?v=3');
+}
+?>
+<link rel="stylesheet" href="<?= htmlspecialchars($cssUrl, ENT_QUOTES, 'UTF-8') ?>">
 
 <!-- Notifications CSS -->
 

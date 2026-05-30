@@ -268,11 +268,17 @@ window.DEVHIRE_CSRF_TOKEN = <?= json_encode(csrfToken(), JSON_UNESCAPED_SLASHES)
 </script>
 
 <!-- JS -->
-
-<script src="<?= appUrl('assets/js/main.js') ?>"></script>
+<?php
+// Prefer built/minified JS when available
+$mainMin = __DIR__ . '/../assets/js/main.min.js';
+$navbarMin = __DIR__ . '/../assets/js/navbar.min.js';
+$mainJsUrl = file_exists($mainMin) ? appUrl('assets/js/main.min.js') : appUrl('assets/js/main.js');
+$navbarJsUrl = file_exists($navbarMin) ? appUrl('assets/js/navbar.min.js') : appUrl('assets/js/navbar.js');
+?>
+<script defer src="<?= $mainJsUrl ?>"></script>
 
 <!-- Navbar JS - Premium Mobile Menu -->
-<script src="<?= appUrl('assets/js/navbar.js') ?>"></script>
+<script defer src="<?= $navbarJsUrl ?>"></script>
 
 </body>
 </html>

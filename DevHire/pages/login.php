@@ -88,7 +88,7 @@ include '../includes/navbar.php';
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="<?= appUrl('auth/login_handler.php') ?>" class="auth-form">
+            <form method="POST" action="<?= appUrl('auth/login_handler.php') ?>" class="auth-form" id="userLoginForm">
                 <?= csrfField() ?>
                 <div class="auth-form-group">
                     <label for="loginEmail" class="auth-form-label">Email address</label>
@@ -117,6 +117,13 @@ include '../includes/navbar.php';
                 <i class="fab fa-google auth-google-icon"></i>
                 Continue with Google
             </button>
+
+            <p style="margin-top: 18px; text-align: center; font-size: 14px; color: #666;">
+                Admin account?
+                <a href="<?= appUrl('admin/login.php') ?>" style="color: #4F46E5; font-weight: 600; text-decoration: none;">
+                    Go to admin login
+                </a>
+            </p>
 
         </div>
 
@@ -155,8 +162,11 @@ waitForFirebase(() => {
 	const firebaseAuth = devHireFirebase.getFirebaseAuth();
 	void devHireFirebase.setFirebasePersistence();
 
+const loginForm = document.getElementById('userLoginForm');
 const signInButton = document.getElementById('googleSignInBtn');
 const rememberMeField = document.getElementById('rememberMe');
+    const emailField = document.getElementById('loginEmail');
+    const passwordField = document.getElementById('loginPassword');
 	const csrfToken = '<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>';
 
 	async function syncUser(user) {
@@ -187,6 +197,42 @@ const rememberMeField = document.getElementById('rememberMe');
 
 		window.location.href = result.redirect || '<?= appUrl('pages/profile.php') ?>';
 	}
+
+    async function signInWithEmailPassword(event) {
+        event.preventDefault();
+
+        try {
+            const email = (emailField?.value || '').trim();
+            const password = passwordField?.value || '';
+
+            if (!email || !password) {
+                throw new Error('Email and password are required.');
+            }
+
+            const result = await devHireFirebase.signInWithEmailAndPassword(email, password);
+            await syncUser(result.user);
+        } catch (error) {
+            const errorMessage = error?.message || 'Login failed.';
+
+            if (window.DevHire && typeof window.DevHire.showNotification === 'function') {
+                window.DevHire.showNotification(errorMessage, 'error');
+            } else {
+                const existingError = document.querySelector('.notice-login-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'auth-notice auth-notice-error';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>' + errorMessage + '</span>';
+
+                const formHeader = document.querySelector('.auth-form-header');
+                if (formHeader) {
+                    formHeader.parentNode.insertBefore(errorDiv, formHeader.nextSibling);
+                }
+            }
+        }
+    }
 
 	async function signInWithGoogle() {
 		try {
@@ -224,7 +270,11 @@ const rememberMeField = document.getElementById('rememberMe');
 		}
 	}
 
-	signInButton.addEventListener('click', signInWithGoogle);
+    if (loginForm) {
+        loginForm.addEventListener('submit', signInWithEmailPassword);
+    }
+
+    signInButton.addEventListener('click', signInWithGoogle);
 
 	// Do not auto-sync an existing Firebase session from this page.
 	// Users must explicitly click sign-in so stale browser auth state

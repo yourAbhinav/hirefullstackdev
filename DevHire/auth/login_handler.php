@@ -316,6 +316,17 @@ if (in_array($mode, ['firebase', 'google', 'admin'], true) || !empty($payload['i
         loginResponse(['success' => false, 'message' => 'Google account verification failed.'], $isJsonRequest, 401);
     }
 
+    if ($mode !== 'admin' && $mode !== 'admin_password') {
+        $adminAccount = findAdminLink($conn, null, $firebaseUid, $email);
+        if ($adminAccount !== null) {
+            recordLoginFailure($conn, $loginThrottleKey, $email);
+            loginResponse([
+                'success' => false,
+                'message' => 'Admin accounts must sign in at the admin login page.',
+            ], $isJsonRequest, 403);
+        }
+    }
+
     if ($mode === 'admin') {
         $adminAccount = findAdminLink($conn, null, $firebaseUid, $email);
 
@@ -390,100 +401,7 @@ if (in_array($mode, ['firebase', 'google', 'admin'], true) || !empty($payload['i
     ], $isJsonRequest);
 }
 
-// Admin password login (email/password authentication for admin_accounts table)
-if ($mode === 'admin_password') {
-    $email = normalizeEmail((string) ($payload['email'] ?? ''));
-    $password = (string) ($payload['password'] ?? '');
-
-    if ($email === '' || $password === '') {
-        recordLoginFailure($conn, $loginThrottleKey, $email);
-        loginResponse(['success' => false, 'message' => 'Email and password are required.'], $isJsonRequest, 422);
-    }
-
-    $stmt = $conn->prepare('SELECT id, name, email, password, role, status FROM admin_accounts WHERE email = ? LIMIT 1');
-    $stmt->bind_param('s', $email);
-    $stmt->execute();
-    $adminAccount = $stmt->get_result()->fetch_assoc() ?: null;
-    $stmt->close();
-
-    if ($adminAccount === null || !password_verify($password, (string) $adminAccount['password'])) {
-        recordLoginFailure($conn, $loginThrottleKey, $email);
-        loginResponse(['success' => false, 'message' => 'Invalid admin email or password.'], $isJsonRequest, 401);
-    }
-
-    if (strtolower((string) ($adminAccount['status'] ?? 'inactive')) !== 'active') {
-        recordLoginFailure($conn, $loginThrottleKey, $email);
-        loginResponse(['success' => false, 'message' => 'This admin account is not active.'], $isJsonRequest, 403);
-    }
-
-    completeSessionLogin($adminAccount, true, 'password', '', '');
-    clearLoginFailures($conn, $loginThrottleKey);
-
-    $adminUpdate = $conn->prepare('UPDATE admin_accounts SET last_login_at = NOW() WHERE id = ?');
-    if ($adminUpdate) {
-        $adminUpdate->bind_param('i', $adminAccount['id']);
-        $adminUpdate->execute();
-        $adminUpdate->close();
-    }
-
-    loginResponse([
-        'success' => true,
-        'message' => 'Admin login successful.',
-        'redirect' => appUrl('admin/dashboard.php'),
-        'user' => [
-            'id' => (int) $adminAccount['id'],
-            'name' => $adminAccount['name'],
-            'email' => $adminAccount['email'],
-            'role' => $adminAccount['role'] ?? 'reviewer',
-        ],
-    ], $isJsonRequest);
-}
-
-$email = normalizeEmail((string) ($payload['email'] ?? ''));
-$password = (string) ($payload['password'] ?? '');
-
-if ($email === '' || $password === '') {
-    recordLoginFailure($conn, $loginThrottleKey, $email);
-    loginResponse(['success' => false, 'message' => 'Email and password are required.'], $isJsonRequest, 422);
-}
-
-$stmt = $conn->prepare('SELECT id, fullName, email, password, role, profile_image, provider, firebase_uid FROM users WHERE email = ? LIMIT 1');
-$stmt->bind_param('s', $email);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc() ?: null;
-$stmt->close();
-
-if ($user === null || !password_verify($password, (string) $user['password'])) {
-    recordLoginFailure($conn, $loginThrottleKey, $email);
-    loginResponse(['success' => false, 'message' => 'Invalid email or password.'], $isJsonRequest, 401);
-}
-
-completeSessionLogin($user, false, (string) ($user['provider'] ?? 'password'), (string) ($user['profile_image'] ?? ''), (string) ($user['firebase_uid'] ?? ''));
-
-clearLoginFailures($conn, $loginThrottleKey);
-
-if ($rememberMe) {
-    revokeRememberMeToken($conn);
-    issueRememberMeToken($conn, (int) $user['id']);
-} else {
-    revokeRememberMeToken($conn);
-}
-
-$loginUpdate = $conn->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?');
-$userId = (int) $user['id'];
-$loginUpdate->bind_param('i', $userId);
-$loginUpdate->execute();
-$loginUpdate->close();
-
 loginResponse([
-    'success' => true,
-    'message' => 'Login successful.',
-    'redirect' => appUrl(roleDashboardPath($user['role'] ?? 'developer')),
-    'user' => [
-        'id' => (int) $user['id'],
-        'name' => $user['fullName'] ?? '',
-        'email' => $user['email'] ?? $email,
-        'photo' => $user['profile_image'] ?? '',
-        'role' => $user['role'] ?? 'developer',
-    ],
-], $isJsonRequest);
+    'success' => false,
+    'message' => 'Firebase authentication is required for email/password login.',
+], $isJsonRequest, 403);

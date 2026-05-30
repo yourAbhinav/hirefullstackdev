@@ -1,0 +1,68 @@
+{
+  "about-impact.jpg": {
+    "original": "assets/images/about-impact.jpg",
+    "webp": "assets/images/generated/about-impact.webp",
+    "srcset": [
+      {
+        "src": "assets/images/generated/about-impact-320.webp",
+        "width": 320
+      },
+      {
+        "src": "assets/images/generated/about-impact-640.webp",
+        "width": 640
+      },
+      {
+        "src": "assets/images/generated/about-impact-1024.webp",
+        "width": 1024
+      },
+      {
+        "src": "assets/images/generated/about-impact-1600.webp",
+        "width": 1600
+      }
+    ]
+  },
+  "hero-team.jpg": {
+    "original": "assets/images/hero-team.jpg",
+    "webp": "assets/images/generated/hero-team.webp",
+    "srcset": [
+      {
+        "src": "assets/images/generated/hero-team-320.webp",
+        "width": 320
+      },
+      {
+        "src": "assets/images/generated/hero-team-640.webp",
+        "width": 640
+      },
+      {
+        "src": "assets/images/generated/hero-team-1024.webp",
+        "width": 1024
+      },
+      {
+        "src": "assets/images/generated/hero-team-1600.webp",
+        "width": 1600
+      }
+    ]
+  },
+  "team-culture.jpg": {
+    "original": "assets/images/team-culture.jpg",
+    "webp": "assets/images/generated/team-culture.webp",
+    "srcset": [
+      {
+        "src": "assets/images/generated/team-culture-320.webp",
+        "width": 320
+      },
+      {
+        "src": "assets/images/generated/team-culture-640.webp",
+        "width": 640
+      },
+      {
+        "src": "assets/images/generated/team-culture-1024.webp",
+        "width": 1024
+      },
+      {
+        "src": "assets/images/generated/team-culture-1600.webp",
+        "width": 1600
+      }
+    ]
+  }
+}

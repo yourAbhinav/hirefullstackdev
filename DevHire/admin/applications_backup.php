@@ -742,7 +742,7 @@ function viewResume(appId) {
                     // Images - show preview
                     document.getElementById('resumeModalBody').innerHTML = `
                         <div class="image-preview-container">
-                            <img src="${data.download_url}" alt="Resume" style="max-width: 100%; max-height: 600px;" />
+                            <img loading="lazy" decoding="async" src="${data.download_url}" alt="Resume" style="max-width: 100%; max-height: 600px;" />
                             <div class="modal-footer-actions">
                                 <a href="${data.download_url}" class="btn btn-primary" download>
                                     <i class="fas fa-download"></i> Download Resume

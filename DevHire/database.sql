@@ -224,6 +224,13 @@ CREATE TABLE messages (
     INDEX idx_receiver (receiver_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Performance: add composite indexes to support common ORDER BY queries and filtering
+ALTER TABLE jobs ADD INDEX idx_status_featured_created_at (status, featured, created_at);
+ALTER TABLE applications ADD INDEX idx_user_created_at (user_id, created_at);
+ALTER TABLE applications ADD INDEX idx_job_created_at (job_id, created_at);
+ALTER TABLE messages ADD INDEX idx_messages_created_at (created_at);
+ALTER TABLE saved_jobs ADD INDEX idx_saved_jobs_user_created_at (user_id, created_at);
+
 INSERT INTO technologies (name, icon, category) VALUES
 ('React', 'fab fa-react', 'Frontend'),
 ('Vue.js', 'fab fa-vuejs', 'Frontend'),
