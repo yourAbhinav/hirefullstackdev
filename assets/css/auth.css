@@ -1,0 +1,602 @@
+/* ============================================
+   Premium SaaS Authentication System
+   Design level: Stripe, Clerk, GitHub, Notion, Vercel, Linear
+   ============================================ */
+
+/* ============================================
+   AUTH SHELL - Main Container
+   ============================================ */
+
+.auth-shell {
+    min-height: calc(100vh - 80px);
+    padding: 0 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 1240px;
+    margin: 0 auto;
+}
+
+.auth-shell-inner {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 3rem;
+    align-items: center;
+    width: 100%;
+}
+
+/* ============================================
+   LEFT PANEL - Brand Story
+   ============================================ */
+
+.auth-panel-brand {
+    padding: 3rem 2rem;
+}
+
+.auth-brand-header {
+    margin-bottom: 2.5rem;
+}
+
+.auth-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.auth-eyebrow-icon {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    background: rgba(124, 58, 237, 0.15);
+    border-radius: 6px;
+    color: var(--primary);
+    font-size: 0.7rem;
+}
+
+.auth-headline {
+    font-size: clamp(2.5rem, 4vw, 3rem);
+    line-height: 1.2;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.auth-subheadline {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-width: 420px;
+}
+
+.auth-features {
+    display: grid;
+    gap: 1rem;
+    margin-top: 2.5rem;
+}
+
+.auth-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.25s ease;
+}
+
+.auth-feature:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(124, 58, 237, 0.15);
+    transform: translateY(-2px);
+}
+
+.auth-feature-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(124, 58, 237, 0.12);
+    color: var(--primary);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.auth-feature-content {
+    flex: 1;
+}
+
+.auth-feature-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.auth-feature-description {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-tertiary);
+}
+
+/* ============================================
+   RIGHT PANEL - Authentication Card
+   ============================================ */
+
+.auth-panel-form {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 2.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    max-width: 520px;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.auth-panel-form:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.auth-form-header {
+    margin-bottom: 2rem;
+}
+
+.auth-form-title {
+    font-size: clamp(1.75rem, 3vw, 2rem);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+}
+
+.auth-form-subtitle {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.auth-form-group {
+    margin-bottom: 1.5rem;
+}
+
+/* Admin forms (no remember-me) keep last form-group margin */
+.auth-admin-form .auth-form-group:last-of-type {
+    margin-bottom: 1.5rem;
+}
+
+/* User forms with remember-me remove last form-group margin */
+.auth-form:not(.auth-admin-form) .auth-remember ~ .auth-form-group {
+    margin-bottom: 0;
+}
+
+/* Add spacing before submit button when no remember-me checkbox */
+.auth-form > button[type="submit"] {
+    margin-top: 0;
+}
+
+.auth-form-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.auth-form-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.auth-form-input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.auth-form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.auth-form-input:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   REMEMBER ME CHECKBOX
+   ============================================ */
+
+.auth-remember {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    margin-bottom: 1.75rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.auth-remember-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    background: rgba(15, 23, 42, 0.4);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.auth-remember-checkbox:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.auth-remember-checkbox:checked::after {
+    content: '✓';
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.auth-remember-checkbox:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.auth-remember-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.auth-remember:hover .auth-remember-label {
+    color: var(--text-primary);
+}
+
+.auth-remember:hover .auth-remember-checkbox {
+    border-color: var(--primary);
+}
+
+/* ============================================
+   PRIMARY BUTTON
+   ============================================ */
+
+.auth-submit-btn {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: white;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.auth-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.auth-submit-btn:active {
+    transform: translateY(0);
+}
+
+.auth-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.auth-submit-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.3);
+}
+
+/* ============================================
+   DIVIDER
+   ============================================ */
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.auth-divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+}
+
+.auth-divider-text {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* ============================================
+   GOOGLE SIGN-IN BUTTON
+   ============================================ */
+
+.auth-google-btn {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.auth-google-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.auth-google-btn:active {
+    transform: translateY(0);
+}
+
+.auth-google-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.auth-google-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.auth-google-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* ============================================
+   AUTH NOTE
+   ============================================ */
+
+.auth-note {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+}
+
+.auth-note a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.auth-note a:hover {
+    color: var(--primary-light);
+}
+
+/* ============================================
+   NOTICE/ERROR MESSAGES
+   ============================================ */
+
+.auth-notice {
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.auth-notice-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.auth-notice-error {
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    color: #fb7185;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+/* Tablet (768px - 1024px) */
+@media (max-width: 1024px) {
+    .auth-shell {
+        padding: 0 1.5rem;
+    }
+    
+    .auth-shell-inner {
+        gap: 2rem;
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .auth-panel-brand {
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth-panel-form {
+        padding: 2rem;
+        max-width: 480px;
+    }
+    
+    .auth-headline {
+        font-size: 2.25rem;
+    }
+    
+    .auth-features {
+        gap: 0.75rem;
+    }
+    
+    .auth-feature {
+        padding: 1rem;
+    }
+}
+
+/* Mobile (max-width: 768px) */
+@media (max-width: 768px) {
+    .auth-shell {
+        min-height: calc(100vh - 120px);
+        padding: 1rem;
+    }
+    
+    .auth-shell-inner {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    /* Form first on mobile */
+    .auth-shell-inner {
+        grid-template-areas: "form" "brand";
+    }
+    
+    .auth-panel-form {
+        grid-area: form;
+        max-width: 100%;
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth-panel-brand {
+        grid-area: brand;
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth-brand-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .auth-headline {
+        font-size: 2rem;
+    }
+    
+    .auth-features {
+        display: none; /* Hide features on mobile for cleaner look */
+    }
+    
+    .auth-form-group {
+        margin-bottom: 1.25rem;
+    }
+}
+
+/* Small Mobile (max-width: 480px) */
+@media (max-width: 480px) {
+    .auth-shell {
+        padding: 0.75rem;
+    }
+    
+    .auth-panel-form {
+        padding: 1.75rem 1.25rem;
+        border-radius: 20px;
+    }
+    
+    .auth-panel-brand {
+        padding: 1.5rem 1.25rem;
+    }
+    
+    .auth-form-title {
+        font-size: 1.5rem;
+    }
+    
+    .auth-headline {
+        font-size: 1.75rem;
+    }
+    
+    .auth-form-input,
+    .auth-submit-btn,
+    .auth-google-btn {
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-feature,
+    .auth-panel-form,
+    .auth-submit-btn,
+    .auth-google-btn,
+    .auth-form-input {
+        transition: none;
+    }
+    
+    .auth-feature:hover {
+        transform: none;
+    }
+    
+    .auth-submit-btn:hover,
+    .auth-google-btn:hover {
+        transform: none;
+    }
+}
+
+/* Focus visible for keyboard navigation */
+.auth-form-input:focus-visible,
+.auth-remember-checkbox:focus-visible,
+.auth-submit-btn:focus-visible,
+.auth-google-btn:focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+}
