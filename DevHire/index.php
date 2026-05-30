@@ -4,6 +4,8 @@ if (ob_get_level() === 0) {
     ob_start();
 }
 
+require_once 'includes/helpers.php';
+require_once 'config/site.php';
 require_once 'config/db.php';
 
 $page_title = "DevHire - Hire Top Full Stack Developers";

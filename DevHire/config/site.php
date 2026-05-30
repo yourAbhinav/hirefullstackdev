@@ -19,7 +19,14 @@ if (getenv('SITE_URL') !== false && getenv('SITE_URL') !== '') {
 } else {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443) ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $baseUrl = APP_BASE_URL !== '' ? APP_BASE_URL : '';
+    // Use defined constant if available, otherwise check environment, otherwise empty
+    if (defined('APP_BASE_URL') && APP_BASE_URL !== '') {
+        $baseUrl = rtrim(APP_BASE_URL, '/');
+    } elseif (getenv('APP_BASE_URL') !== false && getenv('APP_BASE_URL') !== '') {
+        $baseUrl = rtrim(getenv('APP_BASE_URL'), '/');
+    } else {
+        $baseUrl = '';
+    }
     define('SITE_URL', $scheme . '://' . $host . $baseUrl);
 }
 

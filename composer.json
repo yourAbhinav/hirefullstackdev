@@ -1,8 +1,0 @@
-{
-    "name": "hp/dev-hire",
-    "description": "Hiring Full Stack Developer Platform",
-    "type": "project",
-    "require": {
-        "league/oauth2-google": "^5.0"
-    }
-}
